@@ -7,7 +7,7 @@ export function Spinner({ size = 32 }: { size?: number }) {
       height={size}
       viewBox="0 0 24 24"
       fill="none"
-      stroke="#8b5cf6"
+      stroke="#7c3aed"
       strokeWidth="2.5"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -22,19 +22,25 @@ export function Spinner({ size = 32 }: { size?: number }) {
 
 export function Loading({ message = 'Cargando...' }: { message?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 py-12 text-[#6b6375]">
-      <Spinner size={34} />
-      <p>{message}</p>
+    <div className="flex flex-col items-center justify-center gap-4 py-16 text-faint">
+      <Spinner size={30} />
+      <p className="text-sm">{message}</p>
     </div>
   );
 }
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
-      <p className="text-[#ef4444] font-medium">{message}</p>
+    <div className="surface flex flex-col items-center justify-center gap-4 py-14 text-center">
+      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-danger-soft text-danger">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 8v4M12 16h.01" />
+        </svg>
+      </span>
+      <p className="text-sm font-medium text-muted">{message}</p>
       {onRetry && (
-        <Button variant="ghost" onClick={onRetry}>
+        <Button variant="secondary" size="sm" onClick={onRetry}>
           Reintentar
         </Button>
       )}

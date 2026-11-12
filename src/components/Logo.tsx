@@ -88,10 +88,10 @@ export function Logo({
       <LogoMark size={size} />
       {withWordmark && (
         <span
-          className="font-bold tracking-tight text-[#0f172a] leading-none"
+          className="font-heading font-extrabold tracking-tight text-ink leading-none"
           style={{ fontSize: Math.round(size * 0.56) }}
         >
-          <span className="bg-gradient-to-br from-[#8b5cf6] to-[#6d28d9] bg-clip-text text-transparent">
+          <span className="logo-wordmark">
             Movie
           </span>
           natic
@@ -106,7 +106,7 @@ export function Logo({
     <Link
       to={to}
       aria-label="Movienatic — Inicio"
-      className="inline-flex items-center rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8b5cf6] focus-visible:ring-offset-2"
+      className="inline-flex items-center rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
     >
       {content}
     </Link>

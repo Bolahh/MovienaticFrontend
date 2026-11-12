@@ -277,6 +277,10 @@ type RequestOptions = {
   body?: unknown;
   auth?: boolean;
   retry?: boolean;
+  /** Algunos endpoints (p. ej. crear reseña) devuelven texto plano en vez de JSON. */
+  responseType?: 'json' | 'text';
+  /** Fuerza a ignorar la caché HTTP cuando necesitamos datos frescos. */
+  cache?: RequestCache;
 };
 
 async function parseError(
@@ -329,6 +333,7 @@ async function request<T>(
   const response = await fetch(`${BASE_URL}${path}`, {
     method,
     headers,
+    cache: options.cache,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 
@@ -349,7 +354,9 @@ async function request<T>(
   }
 
   const text = await response.text();
-  return (text ? JSON.parse(text) : undefined) as T;
+  if (!text) return undefined as T;
+  if (options.responseType === 'text') return text as T;
+  return JSON.parse(text) as T;
 }
 
 // ---------------------------------------------------------------------------
@@ -476,15 +483,19 @@ export async function getMovies(
 
   return request<MoviePageResponse>(`/movies?${params.toString()}`, {
     auth: false,
+    cache: 'no-store',
   });
 }
 
 export async function getMovieById(movieId: number): Promise<MovieSummary> {
-  return request<MovieSummary>(`/movies/${movieId}`, { auth: false });
+  return request<MovieSummary>(`/movies/${movieId}`, { auth: false, cache: 'no-store' });
 }
 
 export async function getMovieDetail(movieId: number): Promise<MovieDetail> {
-  return request<MovieDetail>(`/movies/${movieId}/detail`, { auth: false });
+  return request<MovieDetail>(`/movies/${movieId}/detail`, {
+    auth: false,
+    cache: 'no-store',
+  });
 }
 
 export async function getMovieCasting(movieId: number): Promise<CastingItem[]> {
@@ -496,12 +507,40 @@ export async function getMovieCasting(movieId: number): Promise<CastingItem[]> {
 }
 
 export async function getMovieReviews(movieId: number): Promise<Review[]> {
-  return request<Review[]>(`/movies/${movieId}/reviews`, { auth: false });
+  return request<Review[]>(`/movies/${movieId}/reviews`, {
+    auth: false,
+    cache: 'no-store',
+  });
 }
 
 export async function getGenres(): Promise<Genre[]> {
   await delay(40);
   return GENRES;
+}
+
+/**
+ * Resuelve el id del usuario autenticado a partir de su nombre de usuario.
+ * El backend identifica las reseñas por `/users/{userId}/reviews` y el JWT
+ * solo incluye el email, así que consultamos la lista de usuarios una vez.
+ */
+let cachedUserId: { username: string; id: number } | null = null;
+
+export async function getUserIdByUsername(username: string): Promise<number> {
+  if (cachedUserId?.username === username) return cachedUserId.id;
+
+  const response = await request<PageResponse<UserBasic>>('/users?size=1000', {
+    auth: true,
+  });
+  const match = (response.content || []).find(
+    (user) => user.username.toLowerCase() === username.toLowerCase()
+  );
+
+  if (!match) {
+    throw new Error('No se pudo identificar tu usuario. Vuelve a iniciar sesión.');
+  }
+
+  cachedUserId = { username, id: match.id };
+  return match.id;
 }
 
 // ---------------------------------------------------------------------------
@@ -511,17 +550,16 @@ export async function getGenres(): Promise<Genre[]> {
 export async function addReview(
   userId: number,
   data: { movieId: number; content: string; rating: number }
-): Promise<Review> {
-  await delay();
-  return {
-    id: Date.now(),
-    content: data.content,
-    rating: data.rating,
-    likes: 0,
-    dislikes: 0,
-    timestamp: new Date().toISOString(),
-    user: { id: userId, username: getCurrentUser()?.username || 'usuario', photoURL: null },
-  };
+): Promise<void> {
+  await request<string>(`/users/${userId}/reviews`, {
+    method: 'POST',
+    responseType: 'text',
+    body: {
+      movieId: data.movieId,
+      content: data.content,
+      rating: data.rating,
+    },
+  });
 }
 
 export async function likeReview(_userId: number, reviewId: number): Promise<Review> {

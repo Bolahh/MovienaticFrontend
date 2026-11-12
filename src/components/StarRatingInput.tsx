@@ -66,7 +66,7 @@ export function StarRatingInput({
 
   return (
     <div
-      className={`flex h-[50px] items-center justify-between gap-2 rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-3 transition-colors focus-within:border-[#c4b5fd] focus-within:ring-2 focus-within:ring-[#8b5cf6]/40 ${className}`}
+      className={`flex h-[42px] items-center justify-between gap-2 rounded-xl border border-transparent bg-ink/5 px-3 transition-colors focus-within:border-accent/30 focus-within:bg-surface-2 focus-within:ring-2 focus-within:ring-accent/15 ${className}`}
     >
       <div
         role="radiogroup"
@@ -79,13 +79,13 @@ export function StarRatingInput({
           const fill = Math.max(0, Math.min(1, display - index));
 
           return (
-            <span key={index} className="relative h-7 w-7">
-              <StarIcon className="absolute inset-0 h-7 w-7 text-[#e2e8f0]" />
+            <span key={index} className="relative h-6 w-6">
+              <StarIcon className="absolute inset-0 h-6 w-6 text-ink/10" />
               <span
                 className="absolute inset-0 overflow-hidden"
                 style={{ width: `${fill * 100}%` }}
               >
-                <StarIcon className="h-7 w-7 text-[#8b5cf6]" />
+                <StarIcon className="h-6 w-6 text-accent" />
               </span>
 
               <button
@@ -94,7 +94,7 @@ export function StarRatingInput({
                 onMouseEnter={() => setHover(index + 0.5)}
                 aria-label={ratingLabel(index + 0.5)}
                 aria-pressed={value === index + 0.5}
-                className="absolute inset-y-0 left-0 w-1/2 rounded-l focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8b5cf6]"
+                className="absolute inset-y-0 left-0 w-1/2 rounded-l focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               />
               <button
                 type="button"
@@ -102,7 +102,7 @@ export function StarRatingInput({
                 onMouseEnter={() => setHover(index + 1)}
                 aria-label={ratingLabel(index + 1)}
                 aria-pressed={value === index + 1}
-                className="absolute inset-y-0 right-0 w-1/2 rounded-r focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8b5cf6]"
+                className="absolute inset-y-0 right-0 w-1/2 rounded-r focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               />
             </span>
           );
@@ -110,7 +110,7 @@ export function StarRatingInput({
       </div>
 
       <div className="flex items-center gap-1">
-        <span className="text-sm tabular-nums text-[#64748b]">
+        <span className="text-xs tabular-nums text-faint">
           {value.toFixed(1)}
         </span>
         {value > 0 && (
@@ -119,7 +119,7 @@ export function StarRatingInput({
             onClick={() => onChange(0)}
             aria-label="Quitar rating mínimo"
             title="Quitar rating mínimo"
-            className="flex h-6 w-6 items-center justify-center rounded-full text-[#94a3b8] transition-colors hover:bg-[#ede9fe] hover:text-[#7c3aed]"
+            className="flex h-6 w-6 items-center justify-center rounded-full text-faint transition-colors hover:bg-accent-soft hover:text-accent"
           >
             <svg
               viewBox="0 0 24 24"

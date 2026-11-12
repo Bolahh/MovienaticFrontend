@@ -14,9 +14,9 @@ export function BackLink({ to, children, className = '' }: BackLinkProps) {
   return (
     <Link
       to={to}
-      className={`group inline-flex self-start items-center gap-2 rounded-full border border-[#e2e8f0] bg-white py-1.5 pl-1.5 pr-4 text-sm font-medium text-[#475569] shadow-sm transition-all duration-200 hover:border-[#c4b5fd] hover:text-[#7c3aed] hover:shadow-[0_6px_18px_-8px_rgba(124,58,237,0.45)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b5cf6] focus-visible:ring-offset-2 ${className}`}
+      className={`group inline-flex self-start items-center gap-2 rounded-full border border-line/10 bg-surface py-1.5 pl-1.5 pr-4 text-[13px] font-medium text-muted shadow-[0_1px_2px_rgba(16,12,30,0.04)] transition-all duration-200 hover:-translate-y-px hover:border-line/20 hover:text-ink hover:shadow-[0_12px_28px_-16px_rgba(16,12,30,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ${className}`}
     >
-      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#f5f3ff] text-[#7c3aed] transition-colors duration-200 group-hover:bg-[#ede9fe]">
+      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-ink/5 text-muted transition-colors duration-200 group-hover:bg-accent-strong group-hover:text-white">
         <svg
           viewBox="0 0 24 24"
           fill="none"

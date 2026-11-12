@@ -1,10 +1,36 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>movienatic</title>
+    <meta name="theme-color" content="#0a0910" />
+    <script>
+      // Aplica el tema guardado antes del primer pintado para evitar destellos.
+      (function () {
+        try {
+          var stored = localStorage.getItem('movienatic-theme');
+          var theme = stored === 'light' || stored === 'dark' ? stored : 'dark';
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.style.colorScheme = theme;
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', theme === 'dark' ? '#0a0910' : '#fbfafc');
+        } catch (error) {
+          // Sin acceso a localStorage: se queda el tema oscuro por defecto.
+        }
+      })();
+    </script>
+    <meta
+      name="description"
+      content="Movienatic: descubre, valora y comparte las películas que más te gustan. Listas, reseñas y una comunidad de cinéfilos."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <title>Movienatic — Descubre, valora y comparte cine</title>
   </head>
   <body>
     <div id="root"></div>

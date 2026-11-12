@@ -509,45 +509,53 @@ export function InfoPage() {
   const content = CONTENT[pathname] || CONTENT['/about'];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="flex min-h-screen flex-col">
       <Navbar
         onLogin={auth.openLogin}
         onRegister={auth.openRegister}
       />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <BackLink to="/" className="mb-8">
+      <main className="page-container max-w-4xl flex-1 py-12 sm:py-16">
+        <BackLink to="/" className="mb-9">
           Volver al inicio
         </BackLink>
 
-        <header className="mb-10">
-          <h1 className="text-3xl sm:text-4xl font-bold text-[#0f172a] mb-3">
+        <header className="mb-12 border-b border-line/10 pb-8">
+          <span className="eyebrow mb-4">Movienatic</span>
+          <h1 className="display-title">
             {content.title}
           </h1>
-          <p className="text-lg text-[#64748b]">{content.subtitle}</p>
+          <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted text-pretty">
+            {content.subtitle}
+          </p>
           {content.updated && (
-            <p className="mt-3 text-xs text-[#94a3b8]">{content.updated}</p>
+            <p className="mt-4 text-[11px] font-medium uppercase tracking-[0.14em] text-faint">
+              {content.updated}
+            </p>
           )}
         </header>
 
-        <div className="space-y-8">
+        <div className="space-y-10">
           {content.blocks.map((block) => (
             <section key={block.heading}>
-              <h2 className="text-xl font-bold text-[#0f172a] mb-3">
+              <h2 className="mb-3 font-heading text-xl font-bold tracking-tight text-ink">
                 {block.heading}
               </h2>
               {block.paragraphs?.map((paragraph) => (
                 <p
                   key={paragraph.slice(0, 40)}
-                  className="text-[#475569] leading-relaxed mb-3"
+                  className="mb-3 text-[15px] leading-relaxed text-muted text-pretty"
                 >
                   {paragraph}
                 </p>
               ))}
               {block.bullets && (
-                <ul className="list-disc pl-6 space-y-2 text-[#475569] leading-relaxed">
+                <ul className="mt-3 space-y-2.5 text-[15px] leading-relaxed text-muted">
                   {block.bullets.map((bullet) => (
-                    <li key={bullet}>{bullet}</li>
+                    <li key={bullet} className="flex gap-3">
+                      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-accent" />
+                      <span>{bullet}</span>
+                    </li>
                   ))}
                 </ul>
               )}
@@ -555,23 +563,25 @@ export function InfoPage() {
           ))}
         </div>
 
-        <div className="mt-12 rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-6">
-          <h2 className="text-lg font-bold text-[#0f172a] mb-2">
-            ¿Necesitas ayuda?
-          </h2>
-          <p className="text-sm text-[#64748b] mb-4">
-            Escríbenos y te responderemos lo antes posible.
-          </p>
+        <div className="surface mt-14 flex flex-col gap-5 p-7 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+          <div>
+            <h2 className="font-heading text-lg font-bold text-ink">
+              ¿Necesitas ayuda?
+            </h2>
+            <p className="mt-1.5 text-sm text-muted">
+              Escríbenos y te responderemos lo antes posible.
+            </p>
+          </div>
           <div className="flex flex-wrap gap-3">
             <Link
               to="/contact"
-              className="px-5 py-2 bg-[#8b5cf6] text-white text-sm font-medium rounded-full hover:bg-[#7c3aed] transition-colors"
+              className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-strong"
             >
               Contactar
             </Link>
             <Link
               to="/help"
-              className="px-5 py-2 bg-white text-[#0f172a] text-sm font-medium rounded-full border border-[#e2e8f0] hover:bg-[#f1f5f9] transition-colors"
+              className="rounded-full border border-line/10 bg-surface px-5 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-surface-2"
             >
               Centro de ayuda
             </Link>

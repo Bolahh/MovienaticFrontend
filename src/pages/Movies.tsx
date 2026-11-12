@@ -6,16 +6,17 @@ import {
   type MovieSummary,
   type Genre,
   type MovieFilter,
-  type Pageable,
 } from '../api';
 import { MovieCard } from '../components/MovieCard';
-import { Select } from '../components/Select';import { StarRatingInput } from '../components/StarRatingInput';
+import { Select } from '../components/Select';
+import { StarRatingInput } from '../components/StarRatingInput';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
 import { BackLink } from '../components/BackLink';
 import { useAuthFlow } from '../components/AuthFlow';
 import { Loading, ErrorState } from '../components/Spinner';
 import Button from '../components/Button';
+import { matchesSearch } from '../lib/search';
 
 export function Movies() {
   const navigate = useNavigate();
@@ -77,7 +78,26 @@ export function Movies() {
     const titleFromUrl = params.get('title') || '';
     setTitle(titleFromUrl);
     setTitleInput(titleFromUrl);
+    setPage(0);
   }, [location]);
+
+  // Búsqueda en vivo: actualiza los resultados mientras se escribe,
+  // con un pequeño debounce para no lanzar una petición por cada tecla.
+  useEffect(() => {
+    const value = titleInput.trim();
+    if (value === title) return;
+
+    const timeoutId = window.setTimeout(() => {
+      setTitle(value);
+      setPage(0);
+      navigate(
+        value ? `/movies?title=${encodeURIComponent(value)}` : '/movies',
+        { replace: true },
+      );
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [titleInput, title, navigate]);
 
   const fetchGenres = useCallback(async () => {
     try {
@@ -112,18 +132,33 @@ export function Movies() {
   const fetchMovies = useCallback(async () => {
     setLoading(true);
     setError('');
-    const pageable: Pageable = { page, size, sort: sort ? [sort] : undefined };
+    const sortParam = sort ? [sort] : undefined;
     const filter: MovieFilter = {
-      title: title || undefined,
       genreIds: selectedGenreId != null ? [selectedGenreId] : undefined,
       releaseYear: releaseYear ? Number(releaseYear) : undefined,
       minRating: minRating > 0 ? minRating : undefined,
     };
     try {
-      const res = await getMovies(pageable, filter);
-      setMovies(res.content || []);
-      setTotalPages(res.totalPages || 1);
-      setTotalElements(res.totalElements || 0);
+      if (title) {
+        // El backend distingue tildes al filtrar por título. Traemos el conjunto
+        // que cumple el resto de filtros y buscamos aquí sin tildes ni mayúsculas.
+        const all = await getMovies({ page: 0, size: 1000, sort: sortParam }, filter);
+        const filtered = (all.content || []).filter((movie) =>
+          matchesSearch(movie.title, title),
+        );
+        const total = filtered.length;
+        const maxPage = Math.max(0, Math.ceil(total / size) - 1);
+        const safePage = Math.min(page, maxPage);
+        if (safePage !== page) setPage(safePage);
+        setMovies(filtered.slice(safePage * size, safePage * size + size));
+        setTotalPages(Math.max(1, Math.ceil(total / size)));
+        setTotalElements(total);
+      } else {
+        const res = await getMovies({ page, size, sort: sortParam }, filter);
+        setMovies(res.content || []);
+        setTotalPages(res.totalPages || 1);
+        setTotalElements(res.totalElements || 0);
+      }
     } catch (e: any) {
       setError(e.message || 'No se pudieron cargar las películas.');
     } finally {
@@ -162,13 +197,14 @@ export function Movies() {
         onLogin={handleLogin}
         onRegister={handleRegister}
       />
-      <section className="py-10 px-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-8">
+      <section className="page-container flex-1 py-12 sm:py-16">
+        <div className="mb-10 flex flex-col gap-6 lg:mb-12 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-[#0f172a] mb-2">Películas</h1>
-            <p className="text-[#64748b]">
-              {totalElements} película{totalElements !== 1 ? 's' : ''} encontrada{totalElements !== 1 ? 's' : ''}
+            <span className="eyebrow mb-4">Catálogo</span>
+            <h1 className="display-title">Películas</h1>
+            <p className="mt-4 text-sm text-muted">
+              <span className="font-semibold text-ink">{totalElements}</span>{' '}
+              película{totalElements !== 1 ? 's' : ''} encontrada{totalElements !== 1 ? 's' : ''}
             </p>
           </div>
           <BackLink to="/">
@@ -177,10 +213,10 @@ export function Movies() {
         </div>
 
         {/* Filtros */}
-        <div className="relative z-20 bg-white rounded-2xl border border-[#e2e8f0] p-6 mb-8 shadow-sm">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="surface relative z-20 mb-10 p-5 sm:p-6">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <div>
-              <label className="block text-sm font-medium text-[#0f172a] mb-2">
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
                 Buscar por título
               </label>
               <input
@@ -196,11 +232,11 @@ export function Movies() {
                   }
                 }}
                 placeholder="Título de la película..."
-                className="w-full rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-4 py-3 text-[#0f172a] focus:outline-none focus:ring-2 focus:ring-[#8b5cf6] transition-colors"
+                className="w-full rounded-xl border border-transparent bg-ink/5 px-3.5 py-2.5 text-sm text-ink placeholder:text-faint transition-colors focus:border-accent/30 focus:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-accent/15"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#0f172a] mb-2">
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
                 Género
               </label>
               <Select
@@ -214,7 +250,7 @@ export function Movies() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#0f172a] mb-2">
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
                 Año de salida
               </label>
               <Select
@@ -228,7 +264,7 @@ export function Movies() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#0f172a] mb-2">
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
                 Rating mínimo
               </label>
               <StarRatingInput
@@ -240,7 +276,7 @@ export function Movies() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#0f172a] mb-2">
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
                 Ordenar por
               </label>
               <Select
@@ -262,8 +298,8 @@ export function Movies() {
         ) : error ? (
           <ErrorState message={error} onRetry={fetchMovies} />
         ) : movies.length === 0 ? (
-          <div className="text-center py-20">
-            <p className="text-[#64748b] text-lg">
+          <div className="surface py-20 text-center">
+            <p className="text-base text-muted">
               No se encontraron películas con esos filtros.
             </p>
             <Button onClick={() => {
@@ -280,7 +316,7 @@ export function Movies() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 md:grid-cols-4">
               {movies.map((movie) => (
                 <MovieCard
                   key={movie.id}
@@ -292,7 +328,7 @@ export function Movies() {
 
             {/* Paginación */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 mt-8">
+              <div className="mt-12 flex items-center justify-center gap-3">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -301,7 +337,7 @@ export function Movies() {
                 >
                   Anterior
                 </Button>
-                <span className="px-2 text-[#64748b] text-sm">
+                <span className="rounded-full border border-line/10 bg-surface px-4 py-1.5 text-xs font-medium text-muted">
                   Página {page + 1} de {totalPages}
                 </span>
                 <Button
@@ -316,8 +352,7 @@ export function Movies() {
             )}
           </>
         )}
-      </div>
-    </section>
+      </section>
     <Footer />
     {auth.modals}
     </>

@@ -29,7 +29,7 @@ function FooterLink({ to, label }: { to: string; label: string }) {
     <li>
       <Link
         to={to}
-        className="text-sm text-[#64748b] hover:text-[#8b5cf6] transition-colors"
+        className="text-sm text-muted transition-colors hover:text-ink"
       >
         {label}
       </Link>
@@ -53,7 +53,7 @@ function SocialLink({
       rel="noopener noreferrer"
       aria-label={label}
       title={label}
-      className="w-9 h-9 rounded-full border border-[#e2e8f0] bg-white flex items-center justify-center text-[#64748b] hover:text-[#8b5cf6] hover:border-[#c4b5fd] transition-colors"
+      className="flex h-9 w-9 items-center justify-center rounded-full border border-line/10 bg-surface text-muted transition-all hover:-translate-y-0.5 hover:border-line/20 hover:text-ink"
     >
       {children}
     </a>
@@ -64,24 +64,24 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="mt-20 border-t border-[#e2e8f0] bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+    <footer className="mt-24 border-t border-line/10 bg-surface/60 backdrop-blur-sm">
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
           {/* Marca */}
           <div>
             <div className="flex items-center">
               <Logo size={42} />
             </div>
-            <p className="mt-4 text-sm text-[#64748b] leading-relaxed max-w-xs">
+            <p className="mt-5 max-w-xs text-sm leading-relaxed text-muted">
               Tu comunidad para descubrir, valorar y guardar las películas que
               más te gustan. Comparte listas y sigue a otros cinéfilos.
             </p>
-            <p className="mt-3 text-xs text-[#94a3b8] leading-relaxed max-w-xs">
+            <p className="mt-3 max-w-xs text-xs leading-relaxed text-faint">
               Movienatic no aloja películas: solo muestra información,
               opiniones y listas creadas por la comunidad.
             </p>
 
-            <div className="mt-5 flex items-center gap-2">
+            <div className="mt-6 flex items-center gap-2">
               <SocialLink href="https://x.com" label="Movienatic en X">
                 <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor" aria-hidden="true">
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.451-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117l11.966 15.644Z" />
@@ -104,7 +104,7 @@ export function Footer() {
 
           {/* Explorar */}
           <div>
-            <h3 className="text-sm font-bold text-[#0f172a] uppercase tracking-wider mb-4">
+            <h3 className="mb-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-faint">
               Explorar
             </h3>
             <ul className="space-y-3">
@@ -116,7 +116,7 @@ export function Footer() {
 
           {/* Ayuda */}
           <div>
-            <h3 className="text-sm font-bold text-[#0f172a] uppercase tracking-wider mb-4">
+            <h3 className="mb-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-faint">
               Ayuda
             </h3>
             <ul className="space-y-3">
@@ -128,7 +128,7 @@ export function Footer() {
 
           {/* Legal */}
           <div>
-            <h3 className="text-sm font-bold text-[#0f172a] uppercase tracking-wider mb-4">
+            <h3 className="mb-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-faint">
               Legal
             </h3>
             <ul className="space-y-3">
@@ -139,11 +139,11 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-10 pt-6 border-t border-[#e2e8f0] flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-xs text-[#94a3b8]">
+        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-line/10 pt-6 sm:flex-row">
+          <p className="text-xs text-faint">
             © {year} Movienatic. Todos los derechos reservados.
           </p>
-          <p className="text-xs text-[#94a3b8]">
+          <p className="text-xs text-faint">
             Hecho con ♥ para los amantes del cine 🎬
           </p>
         </div>

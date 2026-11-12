@@ -162,11 +162,11 @@ export function Select({
         aria-expanded={open}
         aria-controls={listId}
         aria-label={ariaLabel}
-        className="flex w-full items-center justify-between gap-3 rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-4 py-3 text-left text-[#0f172a] transition-colors hover:border-[#c4b5fd] focus:outline-none focus:ring-2 focus:ring-[#8b5cf6] disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex w-full items-center justify-between gap-3 rounded-xl border border-transparent bg-ink/5 px-3.5 py-2.5 text-left text-sm text-ink transition-colors hover:bg-ink/10 focus:border-accent/30 focus:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-accent/15 disabled:cursor-not-allowed disabled:opacity-50"
       >
         <span className="truncate">{selected?.label ?? ''}</span>
         <ChevronIcon
-          className={`h-4 w-4 shrink-0 text-[#94a3b8] transition-transform duration-200 ${
+          className={`h-4 w-4 shrink-0 text-faint transition-transform duration-200 ${
             open ? 'rotate-180' : ''
           }`}
         />
@@ -178,7 +178,7 @@ export function Select({
           id={listId}
           role="listbox"
           aria-label={ariaLabel}
-          className="absolute left-0 right-0 z-30 mt-2 max-h-60 overflow-y-auto rounded-xl border border-[#e2e8f0] bg-white p-1.5 shadow-xl shadow-[#0f172a]/10"
+          className="absolute left-0 right-0 z-30 mt-2 max-h-60 overflow-y-auto rounded-xl border border-line/10 bg-surface p-1.5 shadow-[0_24px_60px_-20px_rgba(16,12,30,0.35)]"
         >
           {options.map((option, index) => {
             const isSelected = option.value === value;
@@ -197,13 +197,13 @@ export function Select({
                   onMouseEnter={() => setActiveIndex(index)}
                   className={`flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                     isActive
-                      ? 'bg-[#f5f3ff] text-[#7c3aed]'
-                      : 'text-[#475569]'
+                      ? 'bg-accent-soft text-accent'
+                      : 'text-muted'
                   } ${isSelected ? 'font-medium' : ''}`}
                 >
                   <span className="truncate">{option.label}</span>
                   {isSelected && (
-                    <CheckIcon className="h-4 w-4 shrink-0 text-[#8b5cf6]" />
+                    <CheckIcon className="h-4 w-4 shrink-0 text-accent" />
                   )}
                 </button>
               </li>

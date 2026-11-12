@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from '../router';
 import { useAuth } from '../auth/AuthProvider';
+import { useTheme } from '../theme/ThemeProvider';
 import { Logo } from './Logo';
 
 type NavbarProps = {
@@ -61,6 +62,25 @@ function MenuIcon({ open, className = '' }: IconProps & { open: boolean }) {
   );
 }
 
+function SunIcon({ className = '' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
+      strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+    </svg>
+  );
+}
+
+function MoonIcon({ className = '' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
+      strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8Z" />
+    </svg>
+  );
+}
+
 const NAV_ITEMS = [
   { to: '/', label: 'Inicio', Icon: HomeIcon },
   { to: '/movies', label: 'Películas', Icon: FilmIcon },
@@ -75,6 +95,7 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, isLoading, username, email, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -97,6 +118,25 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
     const params = new URLSearchParams(location.split('?')[1] || '');
     setSearch(params.get('title') || '');
   }, [location]);
+
+  // En la página de películas el buscador del navbar también filtra en vivo.
+  useEffect(() => {
+    if (pathname !== '/movies') return;
+
+    const value = search.trim();
+    const current =
+      new URLSearchParams(location.split('?')[1] || '').get('title') || '';
+    if (value === current) return;
+
+    const timeoutId = window.setTimeout(() => {
+      navigate(
+        value ? `/movies?title=${encodeURIComponent(value)}` : '/movies',
+        { replace: true },
+      );
+    }, 300);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [search, location, pathname, navigate]);
 
   // Cierra el menú de usuario al hacer clic fuera.
   useEffect(() => {
@@ -123,13 +163,13 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
   const initial = username?.charAt(0).toUpperCase() || '?';
 
   return (
-    <nav className="sticky top-3 sm:top-4 z-50 px-3 sm:px-4">
+    <nav className="sticky top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-4">
       <div className="mx-auto max-w-7xl">
-        <div className="relative rounded-3xl md:rounded-full border border-white/70 bg-white/85 backdrop-blur-xl ring-1 ring-[#e2e8f0]/80 shadow-[0_12px_40px_-16px_rgba(124,58,237,0.28)]">
+        <div className="relative rounded-2xl md:rounded-full border border-line/10 bg-surface/80 backdrop-blur-2xl ring-1 ring-line/10 shadow-[0_1px_2px_rgba(16,12,30,0.04),0_18px_50px_-30px_rgba(16,12,30,0.35)]">
           {/* Brillo superior */}
-          <div className="pointer-events-none absolute inset-x-10 top-0 h-px bg-gradient-to-r from-transparent via-[#c4b5fd]/80 to-transparent" />
+          <div className="pointer-events-none absolute inset-x-12 top-0 h-px bg-gradient-to-r from-transparent via-line/20 to-transparent" />
 
-          <div className="px-3 sm:px-5 lg:px-6 py-2.5">
+          <div className="px-3 sm:px-5 lg:px-6 py-2">
             <div className="flex items-center justify-between h-12 gap-2 lg:gap-5">
               {/* Logo */}
               <div className="flex flex-shrink-0 items-center">
@@ -137,7 +177,7 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
               </div>
 
               {/* Enlaces del centro */}
-              <div className="hidden md:flex items-center gap-0.5 rounded-full border border-[#eef2f7] bg-[#f8fafc]/90 p-1">
+              <div className="hidden md:flex items-center gap-0.5 rounded-full border border-line/10 bg-ink/5 p-1">
                 {NAV_ITEMS.map(({ to, label, Icon }) => {
                   const active = isActivePath(pathname, to);
                   return (
@@ -145,10 +185,10 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                       key={to}
                       to={to}
                       aria-current={active ? 'page' : undefined}
-                      className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
+                      className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-medium tracking-tight transition-all duration-200 ${
                         active
-                          ? 'bg-white text-[#7c3aed] shadow-[0_2px_10px_rgba(139,92,246,0.16)] ring-1 ring-[#ede9fe]'
-                          : 'text-[#64748b] hover:bg-white/70 hover:text-[#0f172a]'
+                          ? 'bg-accent text-white shadow-[0_6px_18px_-8px_rgba(16,12,30,0.65)]'
+                          : 'text-muted hover:bg-surface hover:text-ink'
                       }`}
                     >
                       <Icon className="h-4 w-4" />
@@ -160,33 +200,42 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
 
               {/* Buscador */}
               <form onSubmit={handleSearch} className="relative hidden md:block">
-                <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94a3b8]" />
+                <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
                 <input
                   type="search"
                   name="navbar-search"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Buscar..."
-                  className="w-40 lg:w-52 xl:w-60 rounded-full border border-[#e2e8f0] bg-[#f8fafc]/80 py-2 pl-9 pr-3 text-sm text-[#0f172a] placeholder:text-[#94a3b8] transition-all focus:border-[#c4b5fd] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#8b5cf6]/20"
+                  className="w-40 lg:w-52 xl:w-60 rounded-full border border-transparent bg-ink/5 py-2 pl-9 pr-3 text-sm text-ink placeholder:text-faint transition-all focus:border-accent/30 focus:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-accent/15"
                 />
               </form>
 
               {/* Botones de la derecha */}
               <div className="flex items-center gap-1.5 sm:gap-2">
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  aria-label={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+                  title={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+                  className="hidden md:inline-flex h-9 w-9 items-center justify-center rounded-full border border-line/10 bg-surface text-muted transition-all hover:border-line/20 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+                >
+                  {theme === 'dark' ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />}
+                </button>
                 {isLoading ? (
-                  <div className="h-9 w-24 rounded-full bg-[#f1f5f9] animate-pulse" />
+                  <div className="h-9 w-24 rounded-full bg-ink/5 animate-pulse" />
                 ) : !isAuthenticated ? (
                   <>
                     <a
                       href="#"
                       onClick={(e) => { e.preventDefault(); onLogin?.(); }}
-                      className="hidden sm:inline-flex items-center rounded-full px-3.5 py-2 text-sm font-medium text-[#475569] hover:bg-[#f5f3ff] hover:text-[#7c3aed] transition-colors whitespace-nowrap"
+                      className="hidden sm:inline-flex items-center rounded-full px-3.5 py-2 text-[13px] font-medium text-muted hover:bg-ink/5 hover:text-ink transition-colors whitespace-nowrap"
                     >
                       Iniciar sesión
                     </a>
                     <button
                       onClick={onRegister}
-                      className="px-4 sm:px-5 py-2 bg-gradient-to-r from-[#8b5cf6] to-[#7c3aed] text-white text-sm font-medium rounded-full hover:from-[#7c3aed] hover:to-[#6d28d9] transition-all shadow-[0_6px_18px_-6px_rgba(124,58,237,0.7)]"
+                      className="rounded-full bg-accent px-4 py-2 text-[13px] font-medium text-white shadow-[0_10px_24px_-12px_rgba(16,12,30,0.8)] transition-all hover:-translate-y-px hover:bg-accent-strong sm:px-5"
                     >
                       Regístrate
                     </button>
@@ -198,9 +247,9 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                       onClick={() => setMenuOpen((open) => !open)}
                       aria-haspopup="menu"
                       aria-expanded={menuOpen}
-                      className="flex items-center gap-2 rounded-full border border-[#ede9fe] bg-white px-1.5 sm:px-2 py-1.5 text-sm font-medium text-[#0f172a] shadow-sm hover:border-[#c4b5fd] hover:shadow-md transition-all"
+                      className="flex items-center gap-2 rounded-full border border-line/10 bg-surface px-1.5 sm:px-2 py-1.5 text-[13px] font-medium text-ink shadow-sm hover:border-line/15 hover:shadow-md transition-all"
                     >
-                      <span className="w-7 h-7 rounded-full bg-gradient-to-br from-[#a78bfa] to-[#7c3aed] flex items-center justify-center text-xs font-bold text-white">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-xs font-semibold text-white">
                         {initial}
                       </span>
                       <span className="hidden sm:block max-w-[9rem] truncate pr-1">
@@ -208,7 +257,7 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                       </span>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
                         strokeLinecap="round" strokeLinejoin="round"
-                        className={`hidden sm:block mr-1.5 h-3.5 w-3.5 text-[#94a3b8] transition-transform ${menuOpen ? 'rotate-180' : ''}`}
+                        className={`hidden sm:block mr-1.5 h-3.5 w-3.5 text-faint transition-transform ${menuOpen ? 'rotate-180' : ''}`}
                         aria-hidden="true">
                         <path d="m6 9 6 6 6-6" />
                       </svg>
@@ -217,21 +266,21 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                     {menuOpen && (
                       <div
                         role="menu"
-                        className="absolute right-0 mt-3 w-64 rounded-2xl border border-[#e2e8f0] bg-white shadow-xl shadow-[#0f172a]/10 p-2"
+                        className="absolute right-0 mt-3 w-64 rounded-2xl border border-line/10 bg-surface p-2 shadow-[0_20px_60px_-24px_rgba(16,12,30,0.35)]"
                       >
                         <div className="px-3 py-2">
-                          <p className="text-sm font-semibold text-[#0f172a] truncate">
+                          <p className="text-sm font-semibold text-ink truncate">
                             {username}
                           </p>
                           {email && (
-                            <p className="text-xs text-[#64748b] truncate">{email}</p>
+                            <p className="text-xs text-muted truncate">{email}</p>
                           )}
                         </div>
-                        <div className="my-1 h-px bg-[#e2e8f0]" />
+                        <div className="my-1 h-px bg-line/10" />
                         <Link
                           to="/movies"
                           role="menuitem"
-                          className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-[#475569] hover:bg-[#f5f3ff] hover:text-[#7c3aed] transition-colors"
+                          className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted hover:bg-accent-soft hover:text-accent transition-colors"
                         >
                           <FilmIcon className="h-4 w-4" />
                           Explorar películas
@@ -243,7 +292,7 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                             setMenuOpen(false);
                             logout();
                           }}
-                          className="w-full flex items-center gap-2 text-left px-3 py-2 rounded-xl text-sm text-[#ef4444] hover:bg-[#fef2f2] transition-colors"
+                          className="w-full flex items-center gap-2 text-left px-3 py-2 rounded-xl text-sm text-danger hover:bg-danger-soft transition-colors"
                         >
                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
                             strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
@@ -263,7 +312,7 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                   onClick={() => setMobileOpen((open) => !open)}
                   aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
                   aria-expanded={mobileOpen}
-                  className="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e2e8f0] bg-white text-[#475569] hover:bg-[#f8fafc] hover:text-[#7c3aed] transition-colors"
+                  className="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-full border border-line/10 bg-surface text-muted hover:bg-surface-2 hover:text-accent transition-colors"
                 >
                   <MenuIcon open={mobileOpen} className="h-5 w-5" />
                 </button>
@@ -272,16 +321,16 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
 
             {/* Panel móvil */}
             {mobileOpen && (
-              <div className="md:hidden mt-2 border-t border-[#eef2f7] pt-3 pb-2">
+              <div className="md:hidden mt-2 border-t border-line/10 pt-3 pb-2">
                 <form onSubmit={handleSearch} className="relative mb-2">
-                  <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#94a3b8]" />
+                  <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
                   <input
                     type="search"
                     name="navbar-search-mobile"
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
                     placeholder="Buscar..."
-                    className="w-full rounded-full border border-[#e2e8f0] bg-[#f8fafc]/80 py-2.5 pl-10 pr-4 text-sm text-[#0f172a] placeholder:text-[#94a3b8] focus:border-[#c4b5fd] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#8b5cf6]/20"
+                    className="w-full rounded-full border border-transparent bg-ink/5 py-2.5 pl-10 pr-4 text-sm text-ink placeholder:text-faint focus:border-accent/30 focus:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-accent/15"
                   />
                 </form>
 
@@ -295,8 +344,8 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                         aria-current={active ? 'page' : undefined}
                         className={`flex items-center gap-2.5 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors ${
                           active
-                            ? 'bg-[#f5f3ff] text-[#7c3aed]'
-                            : 'text-[#475569] hover:bg-[#f8fafc] hover:text-[#0f172a]'
+                            ? 'bg-accent text-white'
+                            : 'text-muted hover:bg-ink/5 hover:text-ink'
                         }`}
                       >
                         <Icon className="h-4 w-4" />
@@ -313,11 +362,39 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                         setMobileOpen(false);
                         onLogin?.();
                       }}
-                      className="flex items-center gap-2.5 rounded-2xl px-3 py-2.5 text-sm font-medium text-[#475569] hover:bg-[#f8fafc] hover:text-[#0f172a] transition-colors sm:hidden"
+                      className="flex items-center gap-2.5 rounded-2xl px-3 py-2.5 text-sm font-medium text-muted hover:bg-ink/5 hover:text-ink transition-colors sm:hidden"
                     >
                       Iniciar sesión
                     </a>
                   )}
+
+                  <div className="my-1 h-px bg-line/10" />
+
+                  <button
+                    type="button"
+                    onClick={toggleTheme}
+                    role="switch"
+                    aria-checked={theme === 'light'}
+                    aria-label={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+                    className="flex items-center justify-between gap-2.5 rounded-2xl px-3 py-2.5 text-sm font-medium text-muted hover:bg-ink/5 hover:text-ink transition-colors"
+                  >
+                    <span className="flex items-center gap-2.5">
+                      {theme === 'light' ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />}
+                      Tema claro
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+                        theme === 'light' ? 'bg-accent' : 'bg-line/20'
+                      }`}
+                    >
+                      <span
+                        className={`absolute h-4 w-4 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.35)] transition-transform ${
+                          theme === 'light' ? 'translate-x-[18px]' : 'translate-x-0.5'
+                        }`}
+                      />
+                    </span>
+                  </button>
                 </div>
               </div>
             )}

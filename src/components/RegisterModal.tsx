@@ -38,30 +38,37 @@ export function RegisterModal({ open, onClose, onSwitchToLogin, onSubmit, error 
     <>
       {/* Fondo overlay */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60]"
+        className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-md"
         onClick={onClose}
       />
       {/* Modal */}
       <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
         <div
-          className="bg-white rounded-2xl shadow-xl border border-[#e2e8f0] w-full max-w-md p-6"
+          className="w-full max-w-md rounded-3xl border border-line/10 bg-surface p-6 shadow-[0_40px_100px_-40px_rgba(16,12,30,0.6)] sm:p-7"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-[#0f172a]">Crear cuenta</h2>
+          <div className="mb-6 flex items-start justify-between gap-4">
+            <div>
+              <span className="eyebrow mb-2">Únete a Movienatic</span>
+              <h2 className="font-heading text-2xl font-bold tracking-tight text-ink">
+                Crear cuenta
+              </h2>
+            </div>
             <button
               onClick={onClose}
-              className="text-[#64748b] hover:text-[#0f172a] transition-colors"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line/10 text-muted transition-colors hover:bg-ink/5 hover:text-ink"
               aria-label="Cerrar"
             >
-              ✕
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" className="h-4 w-4" aria-hidden="true">
+                <path d="m6 6 12 12M18 6 6 18" />
+              </svg>
             </button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[#0f172a] mb-2">
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
                 Nombre de usuario
               </label>
               <input
@@ -69,13 +76,13 @@ export function RegisterModal({ open, onClose, onSwitchToLogin, onSubmit, error 
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="moviefan123"
-                className="w-full rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-4 py-3 text-[#0f172a] focus:outline-none focus:ring-2 focus:ring-[#8b5cf6] transition-colors"
+                className="w-full rounded-xl border border-transparent bg-ink/5 px-3.5 py-2.5 text-sm text-ink placeholder:text-faint transition-colors focus:border-accent/30 focus:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-accent/15"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#0f172a] mb-2">
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
                 Correo electrónico
               </label>
               <input
@@ -83,13 +90,13 @@ export function RegisterModal({ open, onClose, onSwitchToLogin, onSubmit, error 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tu@correo.com"
-                className="w-full rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-4 py-3 text-[#0f172a] focus:outline-none focus:ring-2 focus:ring-[#8b5cf6] transition-colors"
+                className="w-full rounded-xl border border-transparent bg-ink/5 px-3.5 py-2.5 text-sm text-ink placeholder:text-faint transition-colors focus:border-accent/30 focus:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-accent/15"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#0f172a] mb-2">
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
                 Contraseña
               </label>
               <input
@@ -98,12 +105,12 @@ export function RegisterModal({ open, onClose, onSwitchToLogin, onSubmit, error 
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 autoComplete="new-password"
-                className="w-full rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-4 py-3 text-[#0f172a] focus:outline-none focus:ring-2 focus:ring-[#8b5cf6] transition-colors"
+                className="w-full rounded-xl border border-transparent bg-ink/5 px-3.5 py-2.5 text-sm text-ink placeholder:text-faint transition-colors focus:border-accent/30 focus:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-accent/15"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#0f172a] mb-2">
+              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
                 Repetir contraseña
               </label>
               <input
@@ -112,30 +119,30 @@ export function RegisterModal({ open, onClose, onSwitchToLogin, onSubmit, error 
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="••••••••"
                 autoComplete="new-password"
-                className="w-full rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-4 py-3 text-[#0f172a] focus:outline-none focus:ring-2 focus:ring-[#8b5cf6] transition-colors"
+                className="w-full rounded-xl border border-transparent bg-ink/5 px-3.5 py-2.5 text-sm text-ink placeholder:text-faint transition-colors focus:border-accent/30 focus:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-accent/15"
               />
             </div>
 
             {error && (
-              <p className="text-sm text-[#ef4444] bg-[#fef2f2] px-3 py-2 rounded-lg">
+              <p className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
                 {error}
               </p>
             )}
 
             <button
               type="submit"
-              className="w-full py-3 bg-[#8b5cf6] text-white text-base font-medium rounded-full hover:bg-[#7c3aed] transition-colors shadow-lg"
+              className="w-full rounded-full bg-accent py-3 text-sm font-semibold text-white shadow-[0_16px_36px_-18px_rgba(16,12,30,0.8)] transition-all hover:bg-accent-strong"
             >
               Crear cuenta
             </button>
           </form>
 
-          <div className="mt-6 pt-4 border-t border-[#e2e8f0] text-center">
-            <p className="text-sm text-[#64748b]">
+          <div className="mt-6 border-t border-line/10 pt-4 text-center">
+            <p className="text-sm text-muted">
               ¿Ya tienes cuenta?
               <button
                 onClick={onSwitchToLogin}
-                className="text-[#8b5cf6] font-medium hover:underline ml-1"
+                className="ml-1 font-medium text-accent hover:underline"
               >
                 Inicia sesión
               </button>

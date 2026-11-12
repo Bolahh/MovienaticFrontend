@@ -2,106 +2,355 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   Movienatic — Base visual "minimalista premium"
+   Tokens, tipografía, fondo y utilidades compartidas.
+   ============================================================ */
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* Tema oscuro (por defecto). Tripletas RGB para modificadores de opacidad. */
+  --ink: 245 243 255;
+  --ink-soft: 229 226 240;
+  --muted: 173 169 187;
+  --faint: 133 128 148;
+  --line: 255 255 255;
+  --surface: 20 18 28;
+  --surface-2: 29 26 39;
+  --surface-from: 27 24 37;
+  --surface-to: 19 17 26;
+  --page: #0a0910;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* Acento violeta */
+  --accent: 139 92 246;
+  --accent-strong: 124 58 237;
+  --accent-soft: 43 30 72;
+  --danger: 248 113 113;
+  --danger-soft: 52 22 28;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light;
-  color: var(--text);
-  background: var(--bg);
+  /* Fondo de página, scrollbar y marca */
+  --page-bg:
+    radial-gradient(48rem 48rem at 85% -10%, rgba(124, 58, 237, 0.22), transparent 62%),
+    radial-gradient(42rem 42rem at 5% 0%, rgba(56, 189, 248, 0.1), transparent 62%),
+    radial-gradient(60rem 40rem at 50% 110%, rgba(236, 72, 153, 0.08), transparent 65%);
+  --scroll-thumb: #3b3548;
+  --scroll-thumb-hover: #4d4560;
+  --surface-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    0 24px 60px -36px rgba(0, 0, 0, 0.8);
+  --logo-from: #ddd6fe;
+  --logo-via: #c4b5fd;
+  --logo-to: #8b5cf6;
+
+  /* Tipografía */
+  --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --heading: 'Manrope', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  color-scheme: dark;
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.55;
+  color: rgb(var(--ink-soft));
+  background-color: var(--page);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  background: white;
-  border: none;
-  box-shadow: none;
+/* Tema claro: mismos tokens, neutros invertidos */
+[data-theme='light'] {
+  --ink: 11 10 16;
+  --ink-soft: 28 26 36;
+  --muted: 107 104 117;
+  --faint: 139 135 151;
+  --line: 11 10 16;
+  --surface: 255 255 255;
+  --surface-2: 250 249 252;
+  --surface-from: 255 255 255;
+  --surface-to: 253 252 255;
+  --page: #fbfafc;
+
+  --accent: 124 58 237;
+  --accent-strong: 109 40 217;
+  --accent-soft: 243 239 255;
+  --danger: 220 38 38;
+  --danger-soft: 254 242 242;
+
+  --page-bg:
+    radial-gradient(48rem 48rem at 85% -10%, rgba(139, 92, 246, 0.1), transparent 60%),
+    radial-gradient(42rem 42rem at 5% 0%, rgba(56, 189, 248, 0.07), transparent 62%),
+    radial-gradient(60rem 40rem at 50% 110%, rgba(236, 72, 153, 0.05), transparent 65%);
+  --scroll-thumb: #d7d2e3;
+  --scroll-thumb-hover: #bdb6cf;
+  --surface-shadow:
+    0 1px 2px rgba(16, 12, 30, 0.04),
+    0 18px 40px -32px rgba(16, 12, 30, 0.28);
+  --logo-from: #7c3aed;
+  --logo-via: #6d28d9;
+  --logo-to: #4c1d95;
+
+  color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
-  background: white;
+  min-height: 100svh;
+  background-color: var(--page);
+  background-image: var(--page-bg);
+  background-attachment: fixed;
+  transition: background-color 0.25s ease;
+}
+
+#root {
+  width: 100%;
+  min-height: 100svh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+/* ============================================================
+   Tipografía base
+   ============================================================ */
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5 {
+    font-family: var(--heading);
+    color: rgb(var(--ink));
+    font-weight: 700;
+    letter-spacing: -0.022em;
+    text-wrap: balance;
+  }
+
+  p {
+    margin: 0;
+  }
+
+  ::selection {
+    background: rgba(139, 92, 246, 0.3);
+    color: rgb(var(--ink));
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--accent));
+    outline-offset: 2px;
+  }
+
+  /* El hueco del anillo de foco debe fundirse con la página */
+  *,
+  *::before,
+  *::after {
+    --tw-ring-offset-color: var(--page);
+  }
+
+  /* Scrollbar discreta */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scroll-thumb) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--scroll-thumb);
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scroll-thumb-hover);
+    background-clip: padding-box;
+    border: 3px solid transparent;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* Controles nativos con el acento del tema */
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: rgb(var(--accent));
 }
 
 /* Eliminar resaltado de autofill del navegador en campos de password */
-input[type="password"]:-webkit-autofill,
-input[type="password"]:-webkit-autofill:focus,
-input[type="password"]:-webkit-autofill:hover {
-  -webkit-box-shadow: 0 0 0 30px #f8fafc inset !important;
-  -webkit-text-fill-color: #0f172a !important;
-  caret-color: #0f172a !important;
-  border: 1px solid #e2e8f0 !important;
+input[type='password']:-webkit-autofill,
+input[type='password']:-webkit-autofill:focus,
+input[type='password']:-webkit-autofill:hover {
+  -webkit-box-shadow: 0 0 0 30px rgb(var(--surface-2)) inset !important;
+  -webkit-text-fill-color: rgb(var(--ink)) !important;
+  caret-color: rgb(var(--ink)) !important;
+  border: 1px solid rgb(var(--line) / 0.12) !important;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
+/* ============================================================
+   Componentes / utilidades compartidas
+   ============================================================ */
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
+@layer components {
+  .page-container {
+    width: 100%;
+    max-width: 80rem;
+    margin-inline: auto;
+    padding-inline: 1.25rem;
+  }
+
+  @media (min-width: 640px) {
+    .page-container {
+      padding-inline: 1.75rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .page-container {
+      padding-inline: 2.5rem;
+    }
+  }
+
+  /* Superficie premium: borde fino, sombra suave y tinte casi imperceptible */
+  .surface {
+    background: linear-gradient(180deg, rgb(var(--surface-from)) 0%, rgb(var(--surface-to)) 100%);
+    border: 1px solid rgb(var(--line) / 0.1);
+    border-radius: 1.5rem;
+    box-shadow: var(--surface-shadow);
+  }
+
+  /* Wordmark del logo: el degradado cambia con el tema */
+  .logo-wordmark {
+    background-image: linear-gradient(135deg, var(--logo-from), var(--logo-via) 55%, var(--logo-to));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Etiqueta pequeña en mayúsculas, tipo editorial */
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--sans);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgb(var(--accent));
+  }
+
+  .eyebrow::before {
+    content: '';
+    width: 1.5rem;
+    height: 1px;
+    background: currentColor;
+    opacity: 0.45;
+  }
+
+  .font-heading {
+    font-family: var(--heading);
+  }
+
+  .text-muted {
+    color: rgb(var(--muted));
+  }
+
+  /* Titular principal de página */
+  .display-title {
+    font-family: var(--heading);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.02;
+    color: rgb(var(--ink));
+    font-size: clamp(2.25rem, 1.4rem + 3.4vw, 3.75rem);
+    text-wrap: balance;
+  }
+
+  .section-title {
+    font-family: var(--heading);
+    font-weight: 700;
+    letter-spacing: -0.022em;
+    color: rgb(var(--ink));
+    font-size: clamp(1.4rem, 1.1rem + 0.9vw, 1.875rem);
+  }
+
+  /* Regla fina de separación */
+  .hairline {
+    height: 1px;
+    width: 100%;
+    background: linear-gradient(90deg, transparent, rgb(var(--line) / 0.12), transparent);
   }
 }
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .text-pretty {
+    text-wrap: pretty;
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.5s ease-out both;
   }
 }
-p {
-  margin: 0;
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

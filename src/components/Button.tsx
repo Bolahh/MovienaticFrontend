@@ -8,18 +8,19 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className = '', variant = 'primary', size = 'md', disabled, children, ...props }, ref) => {
     const base =
-      'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-colors disabled:opacity-50 disabled:pointer-events-none';
+      'inline-flex items-center justify-center gap-2 rounded-full font-medium transition-all disabled:opacity-50 disabled:pointer-events-none';
     const variants: Record<string, string> = {
-      primary: 'bg-[#8b5cf6] text-white hover:bg-[#7c3aed] active:bg-[#6d28d9]',
+      primary:
+        'bg-accent text-white shadow-[0_12px_28px_-14px_rgba(16,12,30,0.75)] hover:-translate-y-px hover:bg-accent-strong',
       secondary:
-        'bg-[#f1f5f9] text-[#0f172a] hover:bg-[#e2e8f0] text-[#0f172a] border border-transparent hover:border-transparent',
-      ghost: 'text-[#8b5cf6] hover:bg-[#ede9fe]',
+        'border border-line/10 bg-surface text-ink hover:bg-surface-2',
+      ghost: 'text-muted hover:bg-ink/5 hover:text-ink',
       danger: 'bg-[#ef4444] text-white hover:bg-[#dc2626]',
     };
     const sizes: Record<string, string> = {
-      sm: 'px-3 py-1.5 text-sm',
-      md: 'px-5 py-2.5 text-base',
-      lg: 'px-8 py-4 text-lg',
+      sm: 'px-3.5 py-1.5 text-[13px]',
+      md: 'px-5 py-2.5 text-sm',
+      lg: 'px-8 py-3.5 text-base',
     };
 
     return (

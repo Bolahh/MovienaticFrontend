@@ -20,7 +20,7 @@ type RouteConfig = {
 };
 
 type RouterContextType = {
-  navigate: (to: string) => void;
+  navigate: (to: string, options?: { replace?: boolean }) => void;
   location: string;
   params: Record<string, string>;
 };
@@ -94,9 +94,13 @@ export function Router({
   const [pathname, setPathname] = useState(window.location.pathname);
 
   const navigate = useCallback(
-    (to: string) => {
+    (to: string, options?: { replace?: boolean }) => {
       const normalized = to.startsWith('/') ? to : `/${to}`;
-      window.history.pushState(null, '', normalized);
+      if (options?.replace) {
+        window.history.replaceState(null, '', normalized);
+      } else {
+        window.history.pushState(null, '', normalized);
+      }
       setFullUrl(window.location.href);
       setPathname(window.location.pathname);
     },
@@ -147,8 +151,8 @@ export function Router({
       ) : NotFound ? (
         <NotFound />
       ) : (
-        <div className="flex flex-col items-center justify-center py-20 text-center text-[#6b6375]">
-          <h2 className="text-xl font-bold text-[#08060d] mb-2">Página no encontrada</h2>
+        <div className="flex flex-col items-center justify-center py-20 text-center text-muted">
+          <h2 className="text-xl font-bold text-ink mb-2">Página no encontrada</h2>
           <p>La página que buscas no existe.</p>
         </div>
       )}
