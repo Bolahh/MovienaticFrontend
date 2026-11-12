@@ -1,22 +1,17 @@
 import { useState, type ReactNode } from 'react';
 import { LoginModal } from './LoginModal';
 import { RegisterModal } from './RegisterModal';
-import {
-  login,
-  register,
-  setAuthToken,
-  getCurrentUser,
-  logout,
-  type AuthUser,
-} from '../api';
+import { useAuth } from '../auth/AuthProvider';
 
 /**
- * Gestiona el estado de autenticación y los modales de login/registro.
- * Se usa en todas las páginas para que el navbar funcione igual en todas.
+ * Gestiona los modales de login/registro.
+ *
+ * La sesión real (tokens, usuario, refresco automático) vive en el
+ * `AuthProvider` global; este hook solo abre/cierra los modales y traduce los
+ * errores del backend a mensajes legibles.
  */
 export function useAuthFlow() {
-  const stored = getCurrentUser();
-  const [user, setUser] = useState<AuthUser | null>(stored);
+  const auth = useAuth();
   const [loginOpen, setLoginOpen] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [loginError, setLoginError] = useState('');
@@ -32,6 +27,9 @@ export function useAuthFlow() {
     setRegisterOpen(true);
   };
 
+  const closeLogin = () => setLoginOpen(false);
+  const closeRegister = () => setRegisterOpen(false);
+
   const handleLogin = async (data: {
     email: string;
     password: string;
@@ -39,13 +37,15 @@ export function useAuthFlow() {
   }) => {
     setLoginError('');
     try {
-      const res = await login({ email: data.email, password: data.password });
-      const token = res.token || res.accessToken || null;
-      if (token) setAuthToken(token);
-      setUser(res.user ?? null);
+      await auth.login(data.email, data.password);
       setLoginOpen(false);
-    } catch (err: any) {
-      setLoginError(err.message || 'Credenciales incorrectas.');
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      setLoginError(
+        status === 401
+          ? 'Correo o contraseña incorrectos.'
+          : (err as Error).message || 'No se pudo iniciar sesión.'
+      );
     }
   };
 
@@ -56,26 +56,27 @@ export function useAuthFlow() {
   }) => {
     setRegisterError('');
     try {
-      const res = await register(data);
-      const token = res.token || res.accessToken || null;
-      if (token) setAuthToken(token);
-      setUser(res.user ?? null);
+      await auth.register(data.username, data.email, data.password);
       setRegisterOpen(false);
-    } catch (err: any) {
-      setRegisterError(err.message || 'No se pudo crear la cuenta.');
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      setRegisterError(
+        status === 409
+          ? 'Ya existe una cuenta con ese correo o nombre de usuario.'
+          : (err as Error).message || 'No se pudo crear la cuenta.'
+      );
     }
   };
 
   const handleLogout = () => {
-    logout();
-    setUser(null);
+    auth.logout();
   };
 
   const modals: ReactNode = (
     <>
       <LoginModal
         open={loginOpen}
-        onClose={() => setLoginOpen(false)}
+        onClose={closeLogin}
         onSwitchToRegister={() => {
           setLoginOpen(false);
           setRegisterOpen(true);
@@ -85,7 +86,7 @@ export function useAuthFlow() {
       />
       <RegisterModal
         open={registerOpen}
-        onClose={() => setRegisterOpen(false)}
+        onClose={closeRegister}
         onSwitchToLogin={() => {
           setRegisterOpen(false);
           setLoginOpen(true);
@@ -97,8 +98,9 @@ export function useAuthFlow() {
   );
 
   return {
-    user,
-    isLoggedIn: !!user,
+    ...auth,
+    user: auth.user,
+    isLoggedIn: auth.isAuthenticated,
     openLogin,
     openRegister,
     handleLogout,

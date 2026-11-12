@@ -1,6 +1,7 @@
 import { Link, useLocation } from '../router';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
+import { BackLink } from '../components/BackLink';
 import { useAuthFlow } from '../components/AuthFlow';
 
 type ContentBlock = {
@@ -510,20 +511,14 @@ export function InfoPage() {
   return (
     <div className="min-h-screen bg-white">
       <Navbar
-        isLoggedIn={auth.isLoggedIn}
-        user={auth.user}
         onLogin={auth.openLogin}
         onRegister={auth.openRegister}
-        onLogout={auth.handleLogout}
       />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1 text-sm text-[#8b5cf6] hover:underline mb-8"
-        >
-          ← Volver al inicio
-        </Link>
+        <BackLink to="/" className="mb-8">
+          Volver al inicio
+        </BackLink>
 
         <header className="mb-10">
           <h1 className="text-3xl sm:text-4xl font-bold text-[#0f172a] mb-3">

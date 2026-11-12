@@ -1,16 +1,18 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useLocation } from '../router';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useLocation } from '../router';
 import {
   getMovies,
   getGenres,
-  type Movie,
+  type MovieSummary,
   type Genre,
   type MovieFilter,
   type Pageable,
 } from '../api';
 import { MovieCard } from '../components/MovieCard';
+import { Select } from '../components/Select';import { StarRatingInput } from '../components/StarRatingInput';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
+import { BackLink } from '../components/BackLink';
 import { useAuthFlow } from '../components/AuthFlow';
 import { Loading, ErrorState } from '../components/Spinner';
 import Button from '../components/Button';
@@ -18,14 +20,14 @@ import Button from '../components/Button';
 export function Movies() {
   const navigate = useNavigate();
   const auth = useAuthFlow();
-  const [movies, setMovies] = useState<Movie[]>([]);
+  const [movies, setMovies] = useState<MovieSummary[]>([]);
   const [genres, setGenres] = useState<Genre[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
   const [page, setPage] = useState(0);
-  const [size] = useState(12);
+  const [size] = useState(20);
 
   // Filtros - estado de input (inmediato, no interrumpe escritura)
   const [titleInput, setTitleInput] = useState('');
@@ -33,9 +35,41 @@ export function Movies() {
   const [title, setTitle] = useState('');
   const [selectedGenreId, setSelectedGenreId] = useState<number | undefined>(undefined);
   const [releaseYear, setReleaseYear] = useState<string>('');
-  const [minRating, setMinRating] = useState<string>('');
+  const [minRating, setMinRating] = useState(0);
+  const [sort, setSort] = useState('');
 
   const location = useLocation();
+
+  const genreOptions = useMemo(
+    () => [
+      { value: '', label: 'Todos los géneros' },
+      ...genres.map((genre) => ({ value: String(genre.id), label: genre.name })),
+    ],
+    [genres]
+  );
+
+  const yearOptions = useMemo(
+    () => [
+      { value: '', label: 'Cualquier año' },
+      ...[...Array(127)].map((_, index) => {
+        const year = 2026 - index;
+        return { value: String(year), label: String(year) };
+      }),
+    ],
+    []
+  );
+
+  const sortOptions = useMemo(
+    () => [
+      { value: '', label: 'Orden por defecto' },
+      { value: 'title,asc', label: 'Título (A-Z)' },
+      { value: 'title,desc', label: 'Título (Z-A)' },
+      { value: 'releaseYear,desc', label: 'Año (más reciente)' },
+      { value: 'releaseYear,asc', label: 'Año (más antiguo)' },
+      { value: 'averageRating,desc', label: 'Mejor valoradas' },
+    ],
+    []
+  );
 
   // Leer título de la URL (viene del buscador del navbar)
   useEffect(() => {
@@ -78,12 +112,12 @@ export function Movies() {
   const fetchMovies = useCallback(async () => {
     setLoading(true);
     setError('');
-    const pageable: Pageable = { page, size, sort: ['title,asc'] };
+    const pageable: Pageable = { page, size, sort: sort ? [sort] : undefined };
     const filter: MovieFilter = {
       title: title || undefined,
       genreIds: selectedGenreId != null ? [selectedGenreId] : undefined,
       releaseYear: releaseYear ? Number(releaseYear) : undefined,
-      minRating: minRating ? Number(minRating) : undefined,
+      minRating: minRating > 0 ? minRating : undefined,
     };
     try {
       const res = await getMovies(pageable, filter);
@@ -95,12 +129,12 @@ export function Movies() {
     } finally {
       setLoading(false);
     }
-  }, [page, size, title, selectedGenreId, releaseYear, minRating]);
+  }, [page, size, title, selectedGenreId, releaseYear, minRating, sort]);
 
   useEffect(() => {
     fetchGenres();
     fetchMovies();
-  }, [fetchGenres, page, selectedGenreId, releaseYear, minRating, title]);
+  }, [fetchGenres, page, selectedGenreId, releaseYear, minRating, title, sort]);
 
   const goToPage = (p: number) => {
     if (p < 0 || p >= totalPages) return;
@@ -122,18 +156,11 @@ export function Movies() {
     auth.openRegister();
   };
 
-  const handleLogout = () => {
-    auth.handleLogout();
-  };
-
   return (
     <>
       <Navbar
-        isLoggedIn={auth.isLoggedIn}
-        user={auth.user}
         onLogin={handleLogin}
         onRegister={handleRegister}
-        onLogout={handleLogout}
       />
       <section className="py-10 px-6">
       <div className="max-w-7xl mx-auto">
@@ -144,14 +171,14 @@ export function Movies() {
               {totalElements} película{totalElements !== 1 ? 's' : ''} encontrada{totalElements !== 1 ? 's' : ''}
             </p>
           </div>
-          <Link to="/" className="text-sm text-[#8b5cf6] hover:underline">
-            ← Volver al inicio
-          </Link>
+          <BackLink to="/">
+            Volver al inicio
+          </BackLink>
         </div>
 
         {/* Filtros */}
-        <div className="bg-white rounded-2xl border border-[#e2e8f0] p-6 mb-8 shadow-sm">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="relative z-20 bg-white rounded-2xl border border-[#e2e8f0] p-6 mb-8 shadow-sm">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <div>
               <label className="block text-sm font-medium text-[#0f172a] mb-2">
                 Buscar por título
@@ -176,59 +203,54 @@ export function Movies() {
               <label className="block text-sm font-medium text-[#0f172a] mb-2">
                 Género
               </label>
-              <select
-                value={selectedGenreId ?? ''}
-                onChange={(e) => {
-                  const id = Number(e.target.value);
-                  setSelectedGenreId(id === 0 ? undefined : id);
+              <Select
+                ariaLabel="Filtrar por género"
+                value={selectedGenreId != null ? String(selectedGenreId) : ''}
+                onChange={(value) => {
+                  setSelectedGenreId(value ? Number(value) : undefined);
                   setPage(0);
                 }}
-                className="w-full rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-4 py-3 text-[#0f172a] focus:outline-none focus:ring-2 focus:ring-[#8b5cf6] transition-colors"
-              >
-                <option value="0">Todos los géneros</option>
-                {genres.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
+                options={genreOptions}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-[#0f172a] mb-2">
                 Año de salida
               </label>
-              <select
+              <Select
+                ariaLabel="Filtrar por año de salida"
                 value={releaseYear}
-                onChange={(e) => {
-                  setReleaseYear(e.target.value);
+                onChange={(value) => {
+                  setReleaseYear(value);
                   setPage(0);
                 }}
-                className="w-full rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-4 py-3 text-[#0f172a] focus:outline-none focus:ring-2 focus:ring-[#8b5cf6] transition-colors"
-              >
-                <option value="">Cualquier año</option>
-                {[...Array(127)].map((_, i) => 2026 - i).map((y) => (
-                  <option key={y} value={String(y)}>
-                    {y}
-                  </option>
-                ))}
-              </select>
+                options={yearOptions}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-[#0f172a] mb-2">
                 Rating mínimo
               </label>
-              <input
-                type="number"
-                step="0.5"
-                min="0"
-                max="5"
+              <StarRatingInput
                 value={minRating}
-                onChange={(e) => {
-                  setMinRating(e.target.value);
+                onChange={(value) => {
+                  setMinRating(value);
                   setPage(0);
                 }}
-                placeholder="0.5"
-                className="w-full rounded-xl border border-[#e2e8f0] bg-[#f8fafc] px-4 py-3 text-[#0f172a] focus:outline-none focus:ring-2 focus:ring-[#8b5cf6] transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[#0f172a] mb-2">
+                Ordenar por
+              </label>
+              <Select
+                ariaLabel="Ordenar películas"
+                value={sort}
+                onChange={(value) => {
+                  setSort(value);
+                  setPage(0);
+                }}
+                options={sortOptions}
               />
             </div>
           </div>
@@ -249,7 +271,8 @@ export function Movies() {
               setTitleInput('');
               setSelectedGenreId(undefined);
               setReleaseYear('');
-              setMinRating('');
+              setMinRating(0);
+              setSort('');
               setPage(0);
             }}>
               Limpiar filtros
@@ -257,9 +280,13 @@ export function Movies() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               {movies.map((movie) => (
-                <MovieCard key={movie.id} {...movie} />
+                <MovieCard
+                  key={movie.id}
+                  {...movie}
+                  to={`/movies/${movie.id}`}
+                />
               ))}
             </div>
 

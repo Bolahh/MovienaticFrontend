@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from '../router';
 import { getPublicLists, type MovieList } from '../api';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
+import { BackLink } from '../components/BackLink';
 import { useAuthFlow } from '../components/AuthFlow';
 import { Loading, ErrorState } from '../components/Spinner';
 
@@ -32,11 +32,8 @@ export function Social() {
   return (
     <>
       <Navbar
-        isLoggedIn={auth.isLoggedIn}
-        user={auth.user}
         onLogin={auth.openLogin}
         onRegister={auth.openRegister}
-        onLogout={auth.handleLogout}
       />
       <section className="py-10 px-6">
         <div className="max-w-7xl mx-auto">
@@ -47,9 +44,9 @@ export function Social() {
                 Descubre listas de películas creadas por la comunidad
               </p>
             </div>
-            <Link to="/" className="text-sm text-[#8b5cf6] hover:underline">
-              ← Volver al inicio
-            </Link>
+            <BackLink to="/">
+              Volver al inicio
+            </BackLink>
           </div>
 
           <div className="text-center mb-8">

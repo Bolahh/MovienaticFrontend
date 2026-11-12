@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react';
 import { Link } from '../router';
+import { Logo } from './Logo';
 
 const exploreLinks = [
   { to: '/', label: 'Inicio' },
@@ -68,14 +69,9 @@ export function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
           {/* Marca */}
           <div>
-            <Link to="/" className="inline-flex items-center gap-1">
-              <span className="text-2xl font-bold text-[#8b5cf6] tracking-tighter">
-                M
-              </span>
-              <span className="font-bold text-xl text-[#0f172a] tracking-tight">
-                ovienatic
-              </span>
-            </Link>
+            <div className="flex items-center">
+              <Logo size={42} />
+            </div>
             <p className="mt-4 text-sm text-[#64748b] leading-relaxed max-w-xs">
               Tu comunidad para descubrir, valorar y guardar las películas que
               más te gustan. Comparte listas y sigue a otros cinéfilos.

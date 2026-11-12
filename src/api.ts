@@ -1,10 +1,8 @@
 /**
  * Capa de datos de Movienatic.
  *
- * Funciona íntegramente con datos mock (src/data/mockData.ts), por lo que
- * NO necesita que el backend esté encendido. Las funciones son asíncronas
- * para poder sustituirlas por llamadas HTTP reales más adelante sin tocar
- * las páginas.
+ * - Autenticación: API real con JWT (http://localhost:8080).
+ * - Resto de datos: mock local mientras se conectan los endpoints.
  */
 
 import {
@@ -12,27 +10,18 @@ import {
   MOVIES,
   MOVIE_LISTS,
   USERS,
-  CASTING,
   REVIEWS,
   type Genre,
   type Movie,
-  type MovieDetail,
-  type CastingItem,
-  type Review,
   type MovieList,
   type UserBasic,
-  type AuthUser,
 } from './data/mockData';
 
 export type {
   Genre,
   Movie,
-  MovieDetail,
-  CastingItem,
-  Review,
   MovieList,
   UserBasic,
-  AuthUser,
 } from './data/mockData';
 
 // ---------------------------------------------------------------------------
@@ -50,25 +39,99 @@ export type RegisterDto = {
   password: string;
 };
 
-export type AuthResponse = {
+export type AuthUser = {
+  username: string;
+  email: string;
+  roles: string[];
+};
+
+export type AuthSession = {
+  accessToken: string;
+  refreshToken: string;
+  tokenType: string;
+  username: string;
+  email: string;
+  roles: string[];
+};
+
+/** Respuesta de POST /auth/login (el backend devuelve `token`). */
+export type LoginResponse = {
+  message?: string;
   token?: string;
   accessToken?: string;
-  user?: AuthUser;
+  refreshToken: string;
+  email: string;
+  username: string;
+  type?: string;
+};
+
+/** Respuesta de POST /auth/refresh. */
+export type AuthResponse = {
+  accessToken: string;
+  refreshToken: string;
+  type?: string;
+  email: string;
+  username: string;
+};
+
+export type RegisterResponse = {
+  message: string;
 };
 
 export type MovieFilter = {
   title?: string;
   genreIds?: number[];
+  director?: string;
   releaseYear?: number;
   minRating?: number;
 };
 
-export type MoviePageResponse = {
-  content: Movie[];
+/** Datos que devuelve GET /movies (vista resumen). */
+export type MovieSummary = {
+  id: number;
+  title: string;
+  posterURL?: string | null;
+  releaseYear?: number;
+  averageRating?: number | null;
+};
+
+export type PageResponse<T> = {
+  content: T[];
   totalPages: number;
   totalElements: number;
   number: number;
   size: number;
+};
+
+export type MoviePageResponse = PageResponse<MovieSummary>;
+
+/** Miembro del reparto tal como lo devuelve el backend. */
+export type CastingItem = {
+  name: string;
+  character?: string | null;
+};
+
+/** Respuesta de GET /movies/{movieId}/detail. */
+export type MovieDetail = MovieSummary & {
+  description?: string | null;
+  genres?: Genre[];
+  numberOfRatings?: number | null;
+  casting?: CastingItem[];
+};
+
+/** Reseña de una película (GET /movies/{id}/reviews). */
+export type Review = {
+  id?: number;
+  content: string;
+  rating: number;
+  likes: number;
+  dislikes: number;
+  timestamp: string;
+  user?: {
+    id?: number;
+    username: string;
+    photoURL?: string | null;
+  };
 };
 
 export type Pageable = {
@@ -78,22 +141,36 @@ export type Pageable = {
 };
 
 // ---------------------------------------------------------------------------
-// Autenticación (mock, persistida en localStorage)
+// Configuración y almacenamiento de la sesión JWT
 // ---------------------------------------------------------------------------
 
-const TOKEN_KEY = 'movienatic_token';
-const USER_KEY = 'movienatic_user';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
-export function setAuthToken(newToken: string | null) {
-  if (newToken) {
-    localStorage.setItem(TOKEN_KEY, newToken);
-  } else {
-    localStorage.removeItem(TOKEN_KEY);
+const ACCESS_TOKEN_KEY = 'movienatic_access_token';
+const REFRESH_TOKEN_KEY = 'movienatic_refresh_token';
+const USER_KEY = 'movienatic_user';
+const LEGACY_TOKEN_KEY = 'movienatic_token';
+
+/** Evento que avisa a React de que la sesión guardada ha cambiado. */
+export const AUTH_EVENT = 'movienatic:auth-change';
+
+function notifyAuthChange(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(AUTH_EVENT));
   }
 }
 
-export function getAuthToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+// Limpia el token mock de versiones anteriores.
+if (typeof localStorage !== 'undefined') {
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
+}
+
+export function getAccessToken(): string | null {
+  return localStorage.getItem(ACCESS_TOKEN_KEY);
+}
+
+export function getRefreshToken(): string | null {
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
 }
 
 export function getCurrentUser(): AuthUser | null {
@@ -105,59 +182,265 @@ export function getCurrentUser(): AuthUser | null {
   }
 }
 
-export function logout() {
-  localStorage.removeItem(TOKEN_KEY);
+export function saveAuthSession(session: AuthSession): void {
+  localStorage.setItem(ACCESS_TOKEN_KEY, session.accessToken);
+  localStorage.setItem(REFRESH_TOKEN_KEY, session.refreshToken);
+  localStorage.setItem(
+    USER_KEY,
+    JSON.stringify({
+      username: session.username,
+      email: session.email,
+      roles: session.roles,
+    })
+  );
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
+  notifyAuthChange();
+}
+
+export function clearAuthSession(): void {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
+  notifyAuthChange();
+}
+
+/** Reconstruye la sesión a partir de lo guardado en localStorage. */
+export function getStoredSession(): AuthSession | null {
+  const accessToken = getAccessToken();
+  const refreshToken = getRefreshToken();
+  const user = getCurrentUser();
+  if (!accessToken || !refreshToken || !user) return null;
+
+  return {
+    accessToken,
+    refreshToken,
+    tokenType: 'Bearer',
+    username: user.username,
+    email: user.email,
+    roles: user.roles?.length ? user.roles : rolesFromToken(accessToken),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Utilidades JWT
+// ---------------------------------------------------------------------------
+
+function decodeBase64Url(value: string): string {
+  const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = base64.padEnd(
+    base64.length + ((4 - (base64.length % 4)) % 4),
+    '='
+  );
+  const bytes = Uint8Array.from(atob(padded), (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+export function decodeJwtPayload(
+  token: string
+): Record<string, unknown> | null {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    return JSON.parse(decodeBase64Url(payload)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+export function getTokenExpiry(token: string): number | null {
+  const payload = decodeJwtPayload(token);
+  return typeof payload?.exp === 'number' ? payload.exp : null;
+}
+
+/** `skewSeconds` permite considerar expirado un token unos segundos antes. */
+export function isTokenExpired(token: string, skewSeconds = 0): boolean {
+  const expiry = getTokenExpiry(token);
+  if (!expiry) return false;
+  return Date.now() >= (expiry - skewSeconds) * 1000;
+}
+
+function rolesFromToken(token: string): string[] {
+  const payload = decodeJwtPayload(token);
+  const roles = payload?.roles ?? payload?.authorities;
+  if (Array.isArray(roles)) return roles.map(String);
+  if (typeof roles === 'string') return [roles];
+  return ['USER'];
+}
+
+// ---------------------------------------------------------------------------
+// Cliente HTTP
+// ---------------------------------------------------------------------------
+
+type RequestOptions = {
+  method?: string;
+  body?: unknown;
+  auth?: boolean;
+  retry?: boolean;
+};
+
+async function parseError(
+  response: Response
+): Promise<Error & { status?: number }> {
+  let message = `Error ${response.status}`;
+  const contentType = response.headers.get('content-type') || '';
+  try {
+    if (contentType.includes('application/json')) {
+      const body = (await response.json()) as {
+        message?: string;
+        error?: string;
+      };
+      message = body.message || body.error || message;
+    } else {
+      const text = await response.text();
+      if (text) message = text;
+    }
+  } catch {
+    // Si el cuerpo no se puede leer, mantenemos el mensaje genérico.
+  }
+  const error = new Error(message) as Error & { status?: number };
+  error.status = response.status;
+  return error;
+}
+
+async function request<T>(
+  path: string,
+  options: RequestOptions = {}
+): Promise<T> {
+  const { method = 'GET', body, auth = true, retry = true } = options;
+
+  if (auth) {
+    const currentToken = getAccessToken();
+    if (!currentToken || isTokenExpired(currentToken, 15)) {
+      await refreshSession();
+    }
+  }
+
+  const headers: Record<string, string> = {};
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  if (auth) {
+    const token = getAccessToken();
+    if (token) headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${BASE_URL}${path}`, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+
+  // Token caducado o revocado: intentamos refrescar y repetir una sola vez.
+  if (response.status === 401 && auth && retry) {
+    const refreshed = await refreshSession();
+    if (refreshed) {
+      return request<T>(path, { ...options, retry: false });
+    }
+  }
+
+  if (!response.ok) {
+    throw await parseError(response);
+  }
+
+  if (response.status === 204 || response.status === 205) {
+    return undefined as T;
+  }
+
+  const text = await response.text();
+  return (text ? JSON.parse(text) : undefined) as T;
+}
+
+// ---------------------------------------------------------------------------
+// Autenticación real (JWT)
+// ---------------------------------------------------------------------------
+
+let refreshPromise: Promise<AuthSession | null> | null = null;
+
+/**
+ * Refresca el access token usando el refresh token.
+ * Es single-flight: varias peticiones simultáneas comparten la misma llamada,
+ * lo que evita invalidar el refresh token por rotación.
+ */
+export async function refreshSession(): Promise<AuthSession | null> {
+  if (refreshPromise) return refreshPromise;
+
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return null;
+
+  refreshPromise = (async () => {
+    try {
+      const response = await request<AuthResponse>('/auth/refresh', {
+        method: 'POST',
+        body: { refreshToken },
+        auth: false,
+      });
+
+      const session: AuthSession = {
+        accessToken: response.accessToken,
+        refreshToken: response.refreshToken,
+        tokenType: response.type || 'Bearer',
+        username: response.username,
+        email: response.email,
+        roles: rolesFromToken(response.accessToken),
+      };
+      saveAuthSession(session);
+      return session;
+    } catch {
+      clearAuthSession();
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+export async function login(data: LoginDto): Promise<AuthSession> {
+  const response = await request<LoginResponse>('/auth/login', {
+    method: 'POST',
+    body: data,
+    auth: false,
+  });
+
+  const accessToken = response.token || response.accessToken;
+  if (!accessToken) {
+    throw new Error('El servidor no devolvió un token de acceso.');
+  }
+  if (!response.refreshToken) {
+    throw new Error('El servidor no devolvió un refresh token.');
+  }
+
+  const session: AuthSession = {
+    accessToken,
+    refreshToken: response.refreshToken,
+    tokenType: response.type || 'Bearer',
+    username: response.username,
+    email: response.email,
+    roles: rolesFromToken(accessToken),
+  };
+
+  saveAuthSession(session);
+  return session;
+}
+
+export async function register(
+  data: RegisterDto
+): Promise<RegisterResponse> {
+  return request<RegisterResponse>('/auth/register', {
+    method: 'POST',
+    body: data,
+    auth: false,
+  });
+}
+
+export function logout(): void {
+  clearAuthSession();
 }
 
 const delay = (ms = 180) => new Promise((resolve) => setTimeout(resolve, ms));
-
-export async function login(data: LoginDto): Promise<AuthResponse> {
-  await delay();
-  const email = data.email.trim();
-  if (!email || !email.includes('@')) {
-    throw new Error('Introduce un correo electrónico válido.');
-  }
-  if (!data.password) {
-    throw new Error('Introduce tu contraseña.');
-  }
-
-  const user: AuthUser = {
-    id: 1,
-    username: email.split('@')[0] || 'usuario',
-    email,
-    photoURL: null,
-  };
-
-  const token = `mock-token-${Date.now()}`;
-  setAuthToken(token);
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
-
-  return { token, user };
-}
-
-export async function register(data: RegisterDto): Promise<AuthResponse> {
-  await delay();
-  const username = data.username.trim();
-  const email = data.email.trim();
-
-  if (username.length < 3) {
-    throw new Error('El nombre de usuario debe tener al menos 3 caracteres.');
-  }
-  if (!email || !email.includes('@')) {
-    throw new Error('Introduce un correo electrónico válido.');
-  }
-  if (data.password.length < 4) {
-    throw new Error('La contraseña debe tener al menos 4 caracteres.');
-  }
-
-  const user: AuthUser = { id: Date.now(), username, email, photoURL: null };
-  const token = `mock-token-${Date.now()}`;
-  setAuthToken(token);
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
-
-  return { token, user };
-}
 
 // ---------------------------------------------------------------------------
 // Películas
@@ -167,73 +450,53 @@ export async function getMovies(
   pageable: Pageable = {},
   filter: MovieFilter = {}
 ): Promise<MoviePageResponse> {
-  await delay(120);
+  const params = new URLSearchParams();
+  params.set('page', String(pageable.page ?? 0));
+  params.set('size', String(pageable.size ?? 20));
 
-  const page = pageable.page ?? 0;
-  const size = pageable.size ?? 12;
+  // Sin orden por defecto: respetamos el orden que devuelve el backend.
+  pageable.sort?.forEach((sort) => params.append('sort', sort));
 
-  let result = [...MOVIES];
+  const title = filter.title?.trim();
+  if (title) params.set('title', title);
 
-  if (filter.title) {
-    const q = filter.title.trim().toLowerCase();
-    result = result.filter((m) => m.title.toLowerCase().includes(q));
-  }
+  filter.genreIds?.forEach((genreId) =>
+    params.append('genreIds', String(genreId))
+  );
 
-  if (filter.genreIds && filter.genreIds.length > 0) {
-    result = result.filter((m) =>
-      (m.genres || []).some((g) => filter.genreIds!.includes(g.id))
-    );
-  }
+  const director = filter.director?.trim();
+  if (director) params.set('director', director);
 
   if (filter.releaseYear != null) {
-    result = result.filter((m) => m.releaseYear === filter.releaseYear);
+    params.set('releaseYear', String(filter.releaseYear));
   }
-
   if (filter.minRating != null) {
-    result = result.filter((m) => (m.averageRating ?? 0) >= filter.minRating!);
+    params.set('minRating', String(filter.minRating));
   }
 
-  const sort = pageable.sort?.[0];
-  if (sort === 'title,asc') {
-    result.sort((a, b) => a.title.localeCompare(b.title, 'es'));
-  } else if (sort === 'title,desc') {
-    result.sort((a, b) => b.title.localeCompare(a.title, 'es'));
-  } else if (sort === 'averageRating,desc') {
-    result.sort((a, b) => (b.averageRating ?? 0) - (a.averageRating ?? 0));
-  } else if (sort === 'releaseYear,desc') {
-    result.sort((a, b) => b.releaseYear - a.releaseYear);
-  }
-
-  const totalElements = result.length;
-  const totalPages = Math.max(1, Math.ceil(totalElements / size));
-  const start = page * size;
-  const content = result.slice(start, start + size);
-
-  return { content, totalPages, totalElements, number: page, size };
+  return request<MoviePageResponse>(`/movies?${params.toString()}`, {
+    auth: false,
+  });
 }
 
-export async function getMovieById(movieId: number): Promise<Movie> {
-  await delay(80);
-  const movie = MOVIES.find((m) => m.id === movieId);
-  if (!movie) throw new Error('Película no encontrada.');
-  return movie;
+export async function getMovieById(movieId: number): Promise<MovieSummary> {
+  return request<MovieSummary>(`/movies/${movieId}`, { auth: false });
 }
 
 export async function getMovieDetail(movieId: number): Promise<MovieDetail> {
-  const movie = await getMovieById(movieId);
-  return { ...movie, casting: CASTING };
+  return request<MovieDetail>(`/movies/${movieId}/detail`, { auth: false });
 }
 
 export async function getMovieCasting(movieId: number): Promise<CastingItem[]> {
-  await delay(80);
-  void movieId;
-  return CASTING;
+  const response = await request<{ casting?: CastingItem[] }>(
+    `/movies/${movieId}/casting`,
+    { auth: false }
+  );
+  return response.casting ?? [];
 }
 
 export async function getMovieReviews(movieId: number): Promise<Review[]> {
-  await delay(80);
-  void movieId;
-  return REVIEWS;
+  return request<Review[]>(`/movies/${movieId}/reviews`, { auth: false });
 }
 
 export async function getGenres(): Promise<Genre[]> {
@@ -363,7 +626,7 @@ export async function removeList(_userId: number, _listId: number): Promise<void
 
 export async function getUsers(
   pageable: Pageable = {}
-): Promise<MoviePageResponse & { content: UserBasic[] }> {
+): Promise<PageResponse<UserBasic>> {
   await delay(80);
   const page = pageable.page ?? 0;
   const size = pageable.size ?? 20;

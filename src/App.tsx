@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Home } from './pages/Home';
 import { Movies } from './pages/Movies';
+import { MovieDetailPage } from './pages/MovieDetail';
 import { Social } from './pages/Social';
 import { InfoPage } from './pages/Info';
 import { Router } from './router';
@@ -10,6 +11,7 @@ export default function App() {
     () => [
       { path: '/', element: Home },
       { path: '/movies', element: Movies },
+      { path: '/movies/:movieId', element: MovieDetailPage },
       { path: '/social', element: Social },
       { path: '/about', element: InfoPage },
       { path: '/contact', element: InfoPage },

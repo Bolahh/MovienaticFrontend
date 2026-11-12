@@ -38,11 +38,8 @@ export function Home() {
   return (
     <div className="min-h-screen bg-white">
       <Navbar
-        isLoggedIn={auth.isLoggedIn}
-        user={auth.user}
         onLogin={auth.openLogin}
         onRegister={auth.openRegister}
-        onLogout={auth.handleLogout}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -105,9 +102,22 @@ export function Home() {
         <div className="text-center mb-16">
           <Link
             to="/movies"
-            className="inline-block px-8 py-3 bg-[#8b5cf6] text-white text-base font-medium rounded-full hover:bg-[#7c3aed] transition-colors shadow-lg"
+            className="group inline-flex items-center gap-2 px-8 py-3 bg-[#8b5cf6] text-white text-base font-medium rounded-full hover:bg-[#7c3aed] transition-colors shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b5cf6] focus-visible:ring-offset-2"
           >
-            Explora todas las películas →
+            Explora todas las películas
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-1"
+              aria-hidden="true"
+            >
+              <path d="M5 12h14" />
+              <path d="m18 5 7 7-7 7" />
+            </svg>
           </Link>
         </div>
       </main>

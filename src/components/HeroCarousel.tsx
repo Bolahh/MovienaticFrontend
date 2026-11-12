@@ -56,24 +56,34 @@ export function HeroCarousel({ title, movies }: HeroCarouselProps) {
 
         {/* Flecha izquierda */}
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             setCurrentIndex((prev) => (prev - 1 + movies.length) % movies.length);
           }}
-          className="absolute left-6 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 flex items-center justify-center text-[#0f172a] text-xl font-bold shadow-lg hover:bg-[#f8fafc] transition-colors opacity-0 group-hover:opacity-100"
+          aria-label="Película anterior"
+          className="absolute left-6 top-1/2 z-20 w-12 h-12 rounded-full bg-white/90 flex items-center justify-center text-[#0f172a] shadow-lg hover:bg-white transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b5cf6]"
         >
-          ‹
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6" aria-hidden="true">
+            <path d="M19 12H5" />
+            <path d="m12 19-7-7 7-7" />
+          </svg>
         </button>
 
         {/* Flecha derecha */}
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             setCurrentIndex((prev) => (prev + 1) % movies.length);
           }}
-          className="absolute right-6 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/90 flex items-center justify-center text-[#0f172a] text-xl font-bold shadow-lg hover:bg-[#f8fafc] transition-colors opacity-0 group-hover:opacity-100"
+          aria-label="Película siguiente"
+          className="absolute right-6 top-1/2 z-20 w-12 h-12 rounded-full bg-white/90 flex items-center justify-center text-[#0f172a] shadow-lg hover:bg-white transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8b5cf6]"
         >
-          ›
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6" aria-hidden="true">
+            <path d="M5 12h14" />
+            <path d="m18 5 7 7-7 7" />
+          </svg>
         </button>
 
         {/* Contenido superpuesto en la parte inferior */}
