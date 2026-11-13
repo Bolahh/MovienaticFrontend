@@ -7,11 +7,8 @@
 
 import {
   GENRES,
-  MOVIES,
   MOVIE_LISTS,
-  USERS,
   type Genre,
-  type Movie,
   type MovieList,
   type UserBasic,
 } from './data/mockData';
@@ -122,6 +119,8 @@ export type MovieDetail = MovieSummary & {
 export type Review = {
   id?: number;
   movieId?: number;
+  movieTitle?: string | null;
+  moviePosterURL?: string | null;
   userId?: number;
   username?: string | null;
   content: string;
@@ -140,6 +139,28 @@ export type Review = {
 export type ReviewVote = {
   reviewId: number;
   isLike: boolean;
+};
+
+/** Estadísticas públicas de un usuario (GET /users/{id}). */
+export type UserDetail = {
+  id: number;
+  username: string;
+  photoURL?: string | null;
+  favouriteCount: number;
+  pendingCount: number;
+  reviewCount: number;
+  listCount: number;
+  followingCount: number;
+  followersCount: number;
+};
+
+/** Lista de películas creada por un usuario. */
+export type UserMovieList = {
+  id: number;
+  name: string;
+  description?: string | null;
+  movieCount: number;
+  previewPosters: string[];
 };
 
 export type Pageable = {
@@ -621,73 +642,111 @@ export async function getReviewVotes(
 }
 
 // ---------------------------------------------------------------------------
-// Favoritos / Pendientes (mock en memoria)
+// Favoritos / Pendientes
 // ---------------------------------------------------------------------------
 
-const favouritesByUser = new Map<number, Set<number>>();
-const pendingByUser = new Map<number, Set<number>>();
-
-function getSet(map: Map<number, Set<number>>, userId: number): Set<number> {
-  if (!map.has(userId)) map.set(userId, new Set());
-  return map.get(userId)!;
-}
-
-export async function getFavourites(userId: number): Promise<Movie[]> {
-  await delay(60);
-  const ids = getSet(favouritesByUser, userId);
-  return MOVIES.filter((m) => ids.has(m.id));
+export async function getFavourites(userId: number): Promise<MovieSummary[]> {
+  return request<MovieSummary[]>(`/users/${userId}/favourites`, {
+    cache: 'no-store',
+  });
 }
 
 export async function addFavourite(userId: number, movieId: number): Promise<void> {
-  await delay(60);
-  getSet(favouritesByUser, userId).add(movieId);
+  await request<string>(`/users/${userId}/favourites`, {
+    method: 'POST',
+    responseType: 'text',
+    body: { movieId },
+  });
 }
 
 export async function removeFavourite(userId: number, movieId: number): Promise<void> {
-  await delay(60);
-  getSet(favouritesByUser, userId).delete(movieId);
+  await request<string>(`/users/${userId}/favourites/${movieId}`, {
+    method: 'DELETE',
+    responseType: 'text',
+  });
 }
 
-export async function getPending(userId: number): Promise<Movie[]> {
-  await delay(60);
-  const ids = getSet(pendingByUser, userId);
-  return MOVIES.filter((m) => ids.has(m.id));
+export async function getPending(userId: number): Promise<MovieSummary[]> {
+  return request<MovieSummary[]>(`/users/${userId}/pending`, {
+    cache: 'no-store',
+  });
 }
 
 export async function addPending(userId: number, movieId: number): Promise<void> {
-  await delay(60);
-  getSet(pendingByUser, userId).add(movieId);
+  await request<string>(`/users/${userId}/pending`, {
+    method: 'POST',
+    responseType: 'text',
+    body: { movieId },
+  });
 }
 
 export async function removePending(userId: number, movieId: number): Promise<void> {
-  await delay(60);
-  getSet(pendingByUser, userId).delete(movieId);
+  await request<string>(`/users/${userId}/pending/${movieId}`, {
+    method: 'DELETE',
+    responseType: 'text',
+  });
 }
 
 // ---------------------------------------------------------------------------
 // Listas de películas
 // ---------------------------------------------------------------------------
 
-export async function getLists(userId: number): Promise<MovieList[]> {
-  await delay(60);
-  return MOVIE_LISTS.filter((l) => l.userId === userId);
+export async function getLists(userId: number): Promise<UserMovieList[]> {
+  return request<UserMovieList[]>(`/users/${userId}/lists`, {
+    cache: 'no-store',
+  });
 }
 
-export async function getListById(_userId: number, listId: number): Promise<MovieList> {
-  await delay(60);
-  const list = MOVIE_LISTS.find((l) => l.id === listId);
-  if (!list) throw new Error('Lista no encontrada.');
-  return list;
+export async function getListMovies(
+  userId: number,
+  listId: number
+): Promise<MovieSummary[]> {
+  return request<MovieSummary[]>(`/users/${userId}/lists/${listId}`, {
+    cache: 'no-store',
+  });
 }
 
-export async function addList(userId: number, listId: number): Promise<MovieList> {
-  await delay(60);
-  void userId;
-  return getListById(userId, listId);
+export async function addList(
+  userId: number,
+  name: string,
+  description?: string
+): Promise<void> {
+  await request<string>(`/users/${userId}/lists`, {
+    method: 'POST',
+    responseType: 'text',
+    body: { name, description: description ?? '' },
+  });
 }
 
-export async function removeList(_userId: number, _listId: number): Promise<void> {
-  await delay(60);
+export async function removeList(userId: number, listId: number): Promise<void> {
+  await request<string>(`/users/${userId}/lists/${listId}`, {
+    method: 'DELETE',
+    responseType: 'text',
+  });
+}
+
+export async function addMovieToList(
+  userId: number,
+  listId: number,
+  movieId: number
+): Promise<void> {
+  await request<string>(`/users/${userId}/lists/${listId}`, {
+    method: 'POST',
+    responseType: 'text',
+    body: { id: movieId },
+  });
+}
+
+export async function removeMovieFromList(
+  userId: number,
+  listId: number,
+  movieId: number
+): Promise<void> {
+  await request<string>(`/users/${userId}/lists/${listId}`, {
+    method: 'PATCH',
+    responseType: 'text',
+    body: { id: movieId },
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -697,38 +756,64 @@ export async function removeList(_userId: number, _listId: number): Promise<void
 export async function getUsers(
   pageable: Pageable = {}
 ): Promise<PageResponse<UserBasic>> {
-  await delay(80);
-  const page = pageable.page ?? 0;
-  const size = pageable.size ?? 20;
-  const totalElements = USERS.length;
-  const totalPages = Math.max(1, Math.ceil(totalElements / size));
-  const content = USERS.slice(page * size, page * size + size);
-  return { content, totalPages, totalElements, number: page, size };
+  const params = new URLSearchParams();
+  if (pageable.page != null) params.set('page', String(pageable.page));
+  if (pageable.size != null) params.set('size', String(pageable.size));
+  (pageable.sort ?? []).forEach((sort) => params.append('sort', sort));
+  const query = params.toString();
+
+  return request<PageResponse<UserBasic>>(`/users${query ? `?${query}` : ''}`);
+}
+
+export async function getUserDetail(userId: number): Promise<UserDetail> {
+  return request<UserDetail>(`/users/${userId}`, { cache: 'no-store' });
 }
 
 export async function getUserById(userId: number): Promise<UserBasic> {
-  await delay(60);
-  const user = USERS.find((u) => u.id === userId);
-  if (!user) throw new Error('Usuario no encontrado.');
-  return user;
+  const detail = await getUserDetail(userId);
+  return {
+    id: detail.id,
+    username: detail.username,
+    photoURL: detail.photoURL,
+  };
 }
 
 export async function getFollowing(userId: number): Promise<UserBasic[]> {
-  await delay(60);
-  return USERS.filter((u) => u.id !== userId).slice(0, 3);
+  return request<UserBasic[]>(`/users/${userId}/following`, {
+    cache: 'no-store',
+  });
 }
 
 export async function getFollowers(userId: number): Promise<UserBasic[]> {
-  await delay(60);
-  return USERS.filter((u) => u.id !== userId).slice(0, 4);
+  return request<UserBasic[]>(`/users/${userId}/followers`, {
+    cache: 'no-store',
+  });
 }
 
-export async function followUser(_userId: number, _targetUserId: number): Promise<void> {
-  await delay(60);
+export async function followUser(
+  userId: number,
+  targetUserId: number
+): Promise<void> {
+  await request<string>(`/users/${userId}/following/${targetUserId}`, {
+    method: 'POST',
+    responseType: 'text',
+  });
 }
 
-export async function unfollowUser(_userId: number, _targetUserId: number): Promise<void> {
-  await delay(60);
+export async function unfollowUser(
+  userId: number,
+  targetUserId: number
+): Promise<void> {
+  await request<string>(`/users/${userId}/following/${targetUserId}`, {
+    method: 'DELETE',
+    responseType: 'text',
+  });
+}
+
+export async function getUserReviews(userId: number): Promise<Review[]> {
+  return request<Review[]>(`/users/${userId}/reviews`, {
+    cache: 'no-store',
+  });
 }
 
 // ---------------------------------------------------------------------------

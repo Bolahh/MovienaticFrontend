@@ -43,6 +43,16 @@ function UsersIcon({ className = '' }: IconProps) {
   );
 }
 
+function UserIcon({ className = '' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
+      strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
+    </svg>
+  );
+}
+
 function SearchIcon({ className = '' }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
@@ -278,6 +288,14 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                         </div>
                         <div className="my-1 h-px bg-line/10" />
                         <Link
+                          to="/profile"
+                          role="menuitem"
+                          className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted hover:bg-accent-soft hover:text-accent transition-colors"
+                        >
+                          <UserIcon className="h-4 w-4" />
+                          Mi perfil
+                        </Link>
+                        <Link
                           to="/movies"
                           role="menuitem"
                           className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted hover:bg-accent-soft hover:text-accent transition-colors"
@@ -353,6 +371,16 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                       </Link>
                     );
                   })}
+
+                  {isAuthenticated && (
+                    <Link
+                      to="/profile"
+                      className="flex items-center gap-2.5 rounded-2xl px-3 py-2.5 text-sm font-medium text-muted hover:bg-ink/5 hover:text-ink transition-colors"
+                    >
+                      <UserIcon className="h-4 w-4" />
+                      Mi perfil
+                    </Link>
+                  )}
 
                   {!isAuthenticated && (
                     <a

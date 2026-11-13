@@ -1,14 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { useParams } from '../router';
+import { Link, useParams } from '../router';
 import {
+  addFavourite,
+  addPending,
   addReview,
   deleteReview,
   dislikeReview,
+  getFavourites,
   getMovieDetail,
   getMovieReviews,
+  getPending,
   getReviewVotes,
   getUserIdByUsername,
   likeReview,
+  removeFavourite,
+  removePending,
   updateReview,
   type MovieDetail,
   type Review,
@@ -199,6 +205,13 @@ export function MovieDetailPage() {
   const [votingReviewId, setVotingReviewId] = useState<number | null>(null);
   const lastPrefilledReviewId = useRef<number | null>(null);
 
+  // Estado de la película en las listas del usuario actual.
+  const [isFavourite, setIsFavourite] = useState(false);
+  const [isPending, setIsPending] = useState(false);
+  const [favouriteBusy, setFavouriteBusy] = useState(false);
+  const [pendingBusy, setPendingBusy] = useState(false);
+  const [collectionError, setCollectionError] = useState('');
+
   const load = useCallback(async () => {
     if (!Number.isFinite(id) || id <= 0) {
       setError('Película no encontrada.');
@@ -270,6 +283,33 @@ export function MovieDetailPage() {
       })
       .catch(() => {
         if (!cancelled) setVotes({});
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId, id]);
+
+  // Cargamos si la película ya está en favoritas y pendientes del usuario.
+  useEffect(() => {
+    let cancelled = false;
+
+    if (currentUserId == null) {
+      setIsFavourite(false);
+      setIsPending(false);
+      return;
+    }
+
+    Promise.all([getFavourites(currentUserId), getPending(currentUserId)])
+      .then(([favourites, pending]) => {
+        if (cancelled) return;
+        setIsFavourite(favourites.some((item) => item.id === id));
+        setIsPending(pending.some((item) => item.id === id));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setIsFavourite(false);
+        setIsPending(false);
       });
 
     return () => {
@@ -502,6 +542,64 @@ export function MovieDetailPage() {
     }
   };
 
+  const toggleFavourite = async () => {
+    if (!auth.isAuthenticated || !auth.username) {
+      auth.openLogin();
+      return;
+    }
+    if (favouriteBusy) return;
+
+    setFavouriteBusy(true);
+    setCollectionError('');
+
+    try {
+      const userId =
+        currentUserId ?? (await getUserIdByUsername(auth.username));
+
+      if (isFavourite) await removeFavourite(userId, id);
+      else await addFavourite(userId, id);
+
+      setIsFavourite(!isFavourite);
+    } catch (e) {
+      setCollectionError(
+        e instanceof Error
+          ? e.message
+          : 'No se pudo actualizar tus favoritas.',
+      );
+    } finally {
+      setFavouriteBusy(false);
+    }
+  };
+
+  const togglePending = async () => {
+    if (!auth.isAuthenticated || !auth.username) {
+      auth.openLogin();
+      return;
+    }
+    if (pendingBusy) return;
+
+    setPendingBusy(true);
+    setCollectionError('');
+
+    try {
+      const userId =
+        currentUserId ?? (await getUserIdByUsername(auth.username));
+
+      if (isPending) await removePending(userId, id);
+      else await addPending(userId, id);
+
+      setIsPending(!isPending);
+    } catch (e) {
+      setCollectionError(
+        e instanceof Error
+          ? e.message
+          : 'No se pudo actualizar tus pendientes.',
+      );
+    } finally {
+      setPendingBusy(false);
+    }
+  };
+
   const poster =
     movie?.posterURL ||
     'https://picsum.photos/seed/movienatic-fallback/400/600';
@@ -514,8 +612,8 @@ export function MovieDetailPage() {
       <Navbar onLogin={auth.openLogin} onRegister={auth.openRegister} />
 
       <main className="page-container flex-1 py-10 sm:py-14">
-        <BackLink to="/movies" className="mb-7">
-          Volver a películas
+        <BackLink to="/movies" back className="mb-7">
+          Volver
         </BackLink>
 
         {loading ? (
@@ -610,6 +708,59 @@ export function MovieDetailPage() {
                         </span>
                       ))}
                     </div>
+                  )}
+
+                  <div className="mt-5 flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant={isFavourite ? 'primary' : 'secondary'}
+                      size="sm"
+                      onClick={toggleFavourite}
+                      disabled={favouriteBusy}
+                      aria-pressed={isFavourite}
+                    >
+                      <StarIcon
+                        className={`h-4 w-4 ${
+                          isFavourite ? 'text-[#c4b5fd]' : 'text-accent'
+                        }`}
+                      />
+                      {favouriteBusy
+                        ? 'Guardando…'
+                        : isFavourite
+                          ? 'En favoritas'
+                          : 'Añadir a favoritas'}
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant={isPending ? 'primary' : 'secondary'}
+                      size="sm"
+                      onClick={togglePending}
+                      disabled={pendingBusy}
+                      aria-pressed={isPending}
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={1.8}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-4 w-4"
+                        aria-hidden="true"
+                      >
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                      {pendingBusy
+                        ? 'Guardando…'
+                        : isPending
+                          ? 'En pendientes'
+                          : 'Añadir a pendientes'}
+                    </Button>
+                  </div>
+
+                  {collectionError && (
+                    <p className="mt-2 text-xs text-danger">{collectionError}</p>
                   )}
 
                   <div className="mt-7 border-t border-line/10 pt-6">
@@ -848,6 +999,11 @@ export function MovieDetailPage() {
                     const authorName = isMine
                       ? 'Tú'
                       : review.username || review.user?.username || 'Usuario';
+                    const authorLink = isMine
+                      ? '/profile'
+                      : review.userId != null
+                        ? `/users/${review.userId}`
+                        : null;
                     const reviewId = review.id;
                     const isLiked = reviewId != null && votes[reviewId] === true;
                     const isDisliked =
@@ -871,7 +1027,16 @@ export function MovieDetailPage() {
                             </span>
                             <div>
                               <p className="flex items-center gap-2 text-sm font-semibold text-ink">
-                                {authorName}
+                                {authorLink ? (
+                                  <Link
+                                    to={authorLink}
+                                    className="transition-colors hover:text-accent"
+                                  >
+                                    {authorName}
+                                  </Link>
+                                ) : (
+                                  authorName
+                                )}
                                 {isMine && (
                                   <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
                                     Tu reseña
