@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useParams } from '../router';
 import {
   addReview,
+  deleteReview,
+  dislikeReview,
   getMovieDetail,
   getMovieReviews,
+  getReviewVotes,
   getUserIdByUsername,
+  likeReview,
+  updateReview,
   type MovieDetail,
   type Review,
 } from '../api';
@@ -181,12 +186,18 @@ export function MovieDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Formulario de nueva reseña
+  // Formulario de reseña (crear o editar la propia)
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewContent, setReviewContent] = useState('');
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewDeleting, setReviewDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [reviewError, setReviewError] = useState('');
   const [reviewSuccess, setReviewSuccess] = useState('');
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [votes, setVotes] = useState<Record<number, boolean>>({});
+  const [votingReviewId, setVotingReviewId] = useState<number | null>(null);
+  const lastPrefilledReviewId = useRef<number | null>(null);
 
   const load = useCallback(async () => {
     if (!Number.isFinite(id) || id <= 0) {
@@ -219,6 +230,80 @@ export function MovieDetailPage() {
     load();
   }, [load]);
 
+  // Resolvemos el id del usuario autenticado para saber si ya tiene reseña.
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!auth.isAuthenticated || !auth.username) {
+      setCurrentUserId(null);
+      return;
+    }
+
+    getUserIdByUsername(auth.username)
+      .then((userId) => {
+        if (!cancelled) setCurrentUserId(userId);
+      })
+      .catch(() => {
+        if (!cancelled) setCurrentUserId(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.isAuthenticated, auth.username]);
+
+  // Votos del usuario actual en esta película, para pintar like/dislike activos.
+  useEffect(() => {
+    let cancelled = false;
+
+    if (currentUserId == null) {
+      setVotes({});
+      return;
+    }
+
+    getReviewVotes(currentUserId, id)
+      .then((list) => {
+        if (cancelled) return;
+        setVotes(
+          Object.fromEntries(list.map((vote) => [vote.reviewId, vote.isLike])),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setVotes({});
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId, id]);
+
+  // La reseña del usuario actual, si existe.
+  const myReview = useMemo(
+    () =>
+      currentUserId != null
+        ? reviews.find((review) => review.userId === currentUserId) ?? null
+        : null,
+    [reviews, currentUserId],
+  );
+
+  // Rellenamos el formulario con la reseña existente (o lo limpiamos si no hay).
+  // Solo lo hacemos cuando cambia la reseña propia, para no pisar lo que escribe.
+  useEffect(() => {
+    const reviewId = myReview?.id ?? null;
+    if (reviewId === lastPrefilledReviewId.current) return;
+
+    lastPrefilledReviewId.current = reviewId;
+    setConfirmDelete(false);
+
+    if (myReview) {
+      setReviewRating(myReview.rating);
+      setReviewContent(myReview.content);
+    } else {
+      setReviewRating(0);
+      setReviewContent('');
+    }
+  }, [myReview]);
+
   const handleReviewSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -240,39 +325,46 @@ export function MovieDetailPage() {
     setReviewSubmitting(true);
     setReviewError('');
     setReviewSuccess('');
+    setConfirmDelete(false);
 
     try {
-      const userId = await getUserIdByUsername(auth.username);
-      await addReview(userId, { movieId: id, content, rating: reviewRating });
+      const userId = currentUserId ?? (await getUserIdByUsername(auth.username));
 
-      setReviewContent('');
-      setReviewRating(0);
-      setReviewSuccess('Reseña publicada correctamente.');
+      if (myReview?.id != null) {
+        await updateReview(userId, myReview.id, {
+          content,
+          rating: reviewRating,
+        });
+        setReviewSuccess('Reseña actualizada correctamente.');
+      } else {
+        await addReview(userId, { movieId: id, content, rating: reviewRating });
+        setReviewSuccess('Reseña publicada correctamente.');
 
-      // Actualización optimista: la media y el número de valoraciones cambian
-      // al instante, sin esperar al refresco de la ficha.
-      setMovie((prev) => {
-        if (!prev) return prev;
-        const baseCount = prev.numberOfRatings ?? reviews.length;
-        const baseAverage =
-          prev.averageRating ??
-          (reviews.length
-            ? reviews.reduce((sum, review) => sum + review.rating, 0) /
-              reviews.length
-            : 0);
-        const nextCount = baseCount + 1;
-        const nextAverage =
-          baseCount > 0
-            ? (baseAverage * baseCount + reviewRating) / nextCount
-            : reviewRating;
-        return {
-          ...prev,
-          averageRating: nextAverage,
-          numberOfRatings: nextCount,
-        };
-      });
+        // Actualización optimista: la media y el número de valoraciones cambian
+        // al instante, sin esperar al refresco de la ficha.
+        setMovie((prev) => {
+          if (!prev) return prev;
+          const baseCount = prev.numberOfRatings ?? reviews.length;
+          const baseAverage =
+            prev.averageRating ??
+            (reviews.length
+              ? reviews.reduce((sum, review) => sum + review.rating, 0) /
+                reviews.length
+              : 0);
+          const nextCount = baseCount + 1;
+          const nextAverage =
+            baseCount > 0
+              ? (baseAverage * baseCount + reviewRating) / nextCount
+              : reviewRating;
+          return {
+            ...prev,
+            averageRating: nextAverage,
+            numberOfRatings: nextCount,
+          };
+        });
+      }
 
-      // Refrescamos la ficha y la lista para reflejar la nueva media y reseña.
+      // Refrescamos la ficha y la lista para reflejar la media y la reseña.
       const [detail, movieReviews] = await Promise.all([
         getMovieDetail(id),
         getMovieReviews(id),
@@ -284,12 +376,129 @@ export function MovieDetailPage() {
       setReviewError(
         status === 409
           ? 'Ya has escrito una reseña para esta película.'
-          : e instanceof Error
-            ? e.message
-            : 'No se pudo publicar la reseña.',
+          : status === 403
+            ? 'No puedes modificar una reseña que no es tuya.'
+            : status === 404
+              ? 'La reseña ya no existe. Recarga la página.'
+              : e instanceof Error
+                ? e.message
+                : 'No se pudo guardar la reseña.',
       );
     } finally {
       setReviewSubmitting(false);
+    }
+  };
+
+  const handleReviewDelete = async () => {
+    if (
+      !auth.isAuthenticated ||
+      currentUserId == null ||
+      myReview?.id == null
+    ) {
+      return;
+    }
+
+    const reviewId = myReview.id;
+
+    setReviewDeleting(true);
+    setReviewError('');
+    setReviewSuccess('');
+    setConfirmDelete(false);
+
+    try {
+      await deleteReview(currentUserId, reviewId);
+
+      setReviews((prev) => prev.filter((review) => review.id !== reviewId));
+      setReviewSuccess('Reseña eliminada correctamente.');
+
+      const [detail, movieReviews] = await Promise.all([
+        getMovieDetail(id),
+        getMovieReviews(id),
+      ]);
+      setMovie(detail);
+      setReviews(movieReviews);
+    } catch (e) {
+      setReviewError(
+        e instanceof Error ? e.message : 'No se pudo borrar la reseña.',
+      );
+    } finally {
+      setReviewDeleting(false);
+    }
+  };
+
+  const handleVote = async (reviewId: number, type: 'like' | 'dislike') => {
+    if (!auth.isAuthenticated || !auth.username) {
+      auth.openLogin();
+      return;
+    }
+    if (votingReviewId != null) return;
+
+    const isLike = type === 'like';
+    const previousVote = votes[reviewId];
+    const previousReviews = reviews;
+
+    // Actualización optimista del contador y del estado del botón.
+    setVotes((prev) => {
+      const next = { ...prev };
+      if (previousVote === isLike) delete next[reviewId];
+      else next[reviewId] = isLike;
+      return next;
+    });
+    setReviews((prev) =>
+      prev.map((review) => {
+        if (review.id !== reviewId) return review;
+
+        let likes = review.likes;
+        let dislikes = review.dislikes;
+
+        if (previousVote === true) likes -= 1;
+        if (previousVote === false) dislikes -= 1;
+        if (previousVote !== isLike) {
+          if (isLike) likes += 1;
+          else dislikes += 1;
+        }
+
+        return {
+          ...review,
+          likes: Math.max(0, likes),
+          dislikes: Math.max(0, dislikes),
+        };
+      }),
+    );
+
+    setVotingReviewId(reviewId);
+    setReviewError('');
+    setReviewSuccess('');
+
+    try {
+      const userId = currentUserId ?? (await getUserIdByUsername(auth.username));
+
+      if (isLike) await likeReview(userId, reviewId);
+      else await dislikeReview(userId, reviewId);
+
+      // Reconciliamos con los datos reales del backend.
+      const [movieReviews, voteList] = await Promise.all([
+        getMovieReviews(id),
+        getReviewVotes(userId, id),
+      ]);
+      setReviews(movieReviews);
+      setVotes(
+        Object.fromEntries(voteList.map((vote) => [vote.reviewId, vote.isLike])),
+      );
+    } catch (e) {
+      // Deshacemos la actualización optimista.
+      setReviews(previousReviews);
+      setVotes((prev) => {
+        const next = { ...prev };
+        if (previousVote === undefined) delete next[reviewId];
+        else next[reviewId] = previousVote;
+        return next;
+      });
+      setReviewError(
+        e instanceof Error ? e.message : 'No se pudo registrar tu voto.',
+      );
+    } finally {
+      setVotingReviewId(null);
     }
   };
 
@@ -479,15 +688,17 @@ export function MovieDetailPage() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <h3 className="font-heading text-lg font-semibold text-ink">
-                        Escribe tu reseña
+                        {myReview ? 'Tu reseña' : 'Escribe tu reseña'}
                       </h3>
                       <p className="mt-1 text-sm text-muted">
-                        Puntúa la película y comparte tu opinión con la comunidad.
+                        {myReview
+                          ? 'Puedes actualizar tu valoración y tu texto, o borrar la reseña.'
+                          : 'Puntúa la película y comparte tu opinión con la comunidad.'}
                       </p>
                     </div>
                     <span className="inline-flex items-center gap-2 rounded-full border border-line/10 bg-ink/5 px-3 py-1 text-xs text-muted">
                       <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                      Publicando como{' '}
+                      {myReview ? 'Editando como' : 'Publicando como'}{' '}
                       <strong className="font-semibold text-ink">{auth.username}</strong>
                     </span>
                   </div>
@@ -529,18 +740,67 @@ export function MovieDetailPage() {
                       <span className="text-xs text-faint">
                         {reviewContent.length}/1000 caracteres
                       </span>
-                      <Button
-                        type="submit"
-                        disabled={
-                          reviewSubmitting ||
-                          reviewRating < 0.5 ||
-                          !reviewContent.trim()
-                        }
-                        className="w-full sm:w-auto"
-                      >
-                        {reviewSubmitting ? 'Publicando…' : 'Publicar reseña'}
-                      </Button>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        {myReview && (
+                          <Button
+                            type="button"
+                            variant="danger"
+                            onClick={() => setConfirmDelete(true)}
+                            disabled={reviewSubmitting || reviewDeleting}
+                            className="w-full sm:w-auto"
+                          >
+                            Borrar reseña
+                          </Button>
+                        )}
+                        <Button
+                          type="submit"
+                          disabled={
+                            reviewSubmitting ||
+                            reviewDeleting ||
+                            reviewRating < 0.5 ||
+                            !reviewContent.trim()
+                          }
+                          className="w-full sm:w-auto"
+                        >
+                          {reviewSubmitting
+                            ? myReview
+                              ? 'Actualizando…'
+                              : 'Publicando…'
+                            : myReview
+                              ? 'Actualizar reseña'
+                              : 'Publicar reseña'}
+                        </Button>
+                      </div>
                     </div>
+
+                    {confirmDelete && myReview && (
+                      <div className="mt-4 rounded-xl border border-danger/20 bg-danger-soft p-4">
+                        <p className="text-sm font-medium text-danger">
+                          ¿Seguro que quieres borrar tu reseña? Esta acción no se
+                          puede deshacer.
+                        </p>
+                        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                          <Button
+                            type="button"
+                            variant="danger"
+                            onClick={handleReviewDelete}
+                            disabled={reviewDeleting}
+                            className="w-full sm:w-auto"
+                          >
+                            {reviewDeleting ? 'Borrando…' : 'Sí, borrar reseña'}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => setConfirmDelete(false)}
+                            disabled={reviewDeleting}
+                            className="w-full sm:w-auto"
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    )}
 
                     {reviewError && (
                       <p
@@ -582,49 +842,108 @@ export function MovieDetailPage() {
                 </p>
               ) : (
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                  {reviews.map((review, index) => (
-                    <article
-                      key={review.id ?? `${review.timestamp}-${index}`}
-                      className="rounded-2xl border border-line/10 bg-surface p-5 shadow-[0_1px_2px_rgba(16,12,30,0.03)] transition-all hover:border-line/15 hover:shadow-[0_22px_44px_-30px_rgba(16,12,30,0.4)] sm:p-6"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold text-accent">
-                            {initials(review.user?.username || 'Usuario')}
-                          </span>
-                          <div>
-                            <p className="text-sm font-semibold text-ink">
-                              {review.user?.username || 'Usuario'}
-                            </p>
-                            <p className="text-xs text-faint">
-                              {formatDate(review.timestamp)}
-                            </p>
+                  {reviews.map((review, index) => {
+                    const isMine =
+                      currentUserId != null && review.userId === currentUserId;
+                    const authorName = isMine
+                      ? 'Tú'
+                      : review.username || review.user?.username || 'Usuario';
+                    const reviewId = review.id;
+                    const isLiked = reviewId != null && votes[reviewId] === true;
+                    const isDisliked =
+                      reviewId != null && votes[reviewId] === false;
+                    const votePending =
+                      reviewId != null && votingReviewId === reviewId;
+
+                    return (
+                      <article
+                        key={review.id ?? `${review.timestamp}-${index}`}
+                        className={`rounded-2xl border p-5 shadow-[0_1px_2px_rgba(16,12,30,0.03)] transition-all hover:border-line/15 hover:shadow-[0_22px_44px_-30px_rgba(16,12,30,0.4)] sm:p-6 ${
+                          isMine
+                            ? 'border-accent/30 bg-accent/[0.04]'
+                            : 'border-line/10 bg-surface'
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold text-accent">
+                              {initials(authorName)}
+                            </span>
+                            <div>
+                              <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+                                {authorName}
+                                {isMine && (
+                                  <span className="rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
+                                    Tu reseña
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-xs text-faint">
+                                {formatDate(review.timestamp)}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <RatingStars value={review.rating} size="sm" />
+                            <span className="text-sm font-semibold text-accent">
+                              {review.rating.toFixed(1)}
+                            </span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <RatingStars value={review.rating} size="sm" />
-                          <span className="text-sm font-semibold text-accent">
-                            {review.rating.toFixed(1)}
-                          </span>
+
+                        <p className="mt-4 text-[15px] leading-relaxed text-muted text-pretty">
+                          {review.content}
+                        </p>
+
+                        <div className="mt-5 flex items-center gap-2 border-t border-line/10 pt-4 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (reviewId != null) handleVote(reviewId, 'like');
+                            }}
+                            disabled={reviewId == null || votePending}
+                            aria-pressed={isLiked}
+                            aria-label="Marcar reseña como útil"
+                            title={
+                              auth.isAuthenticated
+                                ? 'Me resulta útil'
+                                : 'Inicia sesión para votar'
+                            }
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                              isLiked
+                                ? 'border-accent/30 bg-accent-soft text-accent'
+                                : 'border-line/10 text-faint hover:border-line/20 hover:text-ink'
+                            }`}
+                          >
+                            <ThumbIcon type="like" className="h-4 w-4" />
+                            {review.likes}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (reviewId != null) handleVote(reviewId, 'dislike');
+                            }}
+                            disabled={reviewId == null || votePending}
+                            aria-pressed={isDisliked}
+                            aria-label="Marcar reseña como no útil"
+                            title={
+                              auth.isAuthenticated
+                                ? 'No me resulta útil'
+                                : 'Inicia sesión para votar'
+                            }
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                              isDisliked
+                                ? 'border-danger/30 bg-danger-soft text-danger'
+                                : 'border-line/10 text-faint hover:border-line/20 hover:text-ink'
+                            }`}
+                          >
+                            <ThumbIcon type="dislike" className="h-4 w-4" />
+                            {review.dislikes}
+                          </button>
                         </div>
-                      </div>
-
-                      <p className="mt-4 text-[15px] leading-relaxed text-muted text-pretty">
-                        {review.content}
-                      </p>
-
-                      <div className="mt-5 flex items-center gap-4 border-t border-line/10 pt-4 text-xs text-faint">
-                        <span className="inline-flex items-center gap-1.5">
-                          <ThumbIcon type="like" className="h-4 w-4" />
-                          {review.likes}
-                        </span>
-                        <span className="inline-flex items-center gap-1.5">
-                          <ThumbIcon type="dislike" className="h-4 w-4" />
-                          {review.dislikes}
-                        </span>
-                      </div>
-                    </article>
-                  ))}
+                      </article>
+                    );
+                  })}
                 </div>
               )}
             </section>

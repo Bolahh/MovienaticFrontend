@@ -10,7 +10,6 @@ import {
   MOVIES,
   MOVIE_LISTS,
   USERS,
-  REVIEWS,
   type Genre,
   type Movie,
   type MovieList,
@@ -122,6 +121,9 @@ export type MovieDetail = MovieSummary & {
 /** Reseña de una película (GET /movies/{id}/reviews). */
 export type Review = {
   id?: number;
+  movieId?: number;
+  userId?: number;
+  username?: string | null;
   content: string;
   rating: number;
   likes: number;
@@ -132,6 +134,12 @@ export type Review = {
     username: string;
     photoURL?: string | null;
   };
+};
+
+/** Voto del usuario autenticado sobre una reseña. */
+export type ReviewVote = {
+  reviewId: number;
+  isLike: boolean;
 };
 
 export type Pageable = {
@@ -562,30 +570,54 @@ export async function addReview(
   });
 }
 
-export async function likeReview(_userId: number, reviewId: number): Promise<Review> {
-  await delay(60);
-  const review = REVIEWS.find((r) => r.id === reviewId) || REVIEWS[0];
-  return { ...review, id: reviewId, likes: review.likes + 1 };
-}
-
-export async function dislikeReview(_userId: number, reviewId: number): Promise<Review> {
-  await delay(60);
-  const review = REVIEWS.find((r) => r.id === reviewId) || REVIEWS[0];
-  return { ...review, id: reviewId, dislikes: review.dislikes + 1 };
-}
-
-export async function deleteReview(_userId: number, _reviewId: number): Promise<void> {
-  await delay(60);
-}
-
 export async function updateReview(
-  _userId: number,
+  userId: number,
   reviewId: number,
-  data: { content?: string; rating?: number }
-): Promise<Review> {
-  await delay(60);
-  const review = REVIEWS.find((r) => r.id === reviewId) || REVIEWS[0];
-  return { ...review, ...data };
+  data: { content: string; rating: number }
+): Promise<void> {
+  await request<string>(`/users/${userId}/reviews/${reviewId}`, {
+    method: 'PATCH',
+    responseType: 'text',
+    body: {
+      content: data.content,
+      rating: data.rating,
+    },
+  });
+}
+
+export async function deleteReview(
+  userId: number,
+  reviewId: number
+): Promise<void> {
+  await request<string>(`/users/${userId}/reviews/${reviewId}`, {
+    method: 'DELETE',
+    responseType: 'text',
+  });
+}
+
+export async function likeReview(userId: number, reviewId: number): Promise<void> {
+  await request<string>(`/users/${userId}/reviews/${reviewId}/like`, {
+    method: 'PATCH',
+    responseType: 'text',
+  });
+}
+
+export async function dislikeReview(userId: number, reviewId: number): Promise<void> {
+  await request<string>(`/users/${userId}/reviews/${reviewId}/dislike`, {
+    method: 'PATCH',
+    responseType: 'text',
+  });
+}
+
+/** Votos del usuario para las reseñas de una película (o todos si se omite). */
+export async function getReviewVotes(
+  userId: number,
+  movieId?: number
+): Promise<ReviewVote[]> {
+  const query = movieId != null ? `?movieId=${movieId}` : '';
+  return request<ReviewVote[]>(`/users/${userId}/reviews/votes${query}`, {
+    cache: 'no-store',
+  });
 }
 
 // ---------------------------------------------------------------------------
