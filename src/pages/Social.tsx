@@ -1,14 +1,25 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getPublicLists, type MovieList } from '../api';
+import {
+  getLikedListIds,
+  getPublicLists,
+  getUserIdByUsername,
+  likeList,
+  unlikeList,
+  type MovieList,
+} from '../api';
 import { Navbar } from '../components/Navbar';
 import { Footer } from '../components/Footer';
 import { BackLink } from '../components/BackLink';
+import { PublicListCard } from '../components/PublicListCard';
 import { useAuthFlow } from '../components/AuthFlow';
 import { Loading, ErrorState } from '../components/Spinner';
 
 export function Social() {
   const auth = useAuthFlow();
   const [lists, setLists] = useState<MovieList[]>([]);
+  const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
+  const [likeBusyId, setLikeBusyId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -16,18 +27,73 @@ export function Social() {
     setLoading(true);
     setError('');
     try {
-      const ls = await getPublicLists();
-      setLists([...(ls || [])].sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0)));
-    } catch (e: any) {
-      setError(e.message || 'No se pudieron cargar las listas.');
+      const ls = await getPublicLists(50);
+      setLists(ls);
+
+      if (auth.isAuthenticated && auth.username) {
+        const userId = await getUserIdByUsername(auth.username);
+        setCurrentUserId(userId);
+        setLikedIds(new Set(await getLikedListIds(userId)));
+      } else {
+        setCurrentUserId(null);
+        setLikedIds(new Set());
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudieron cargar las listas.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [auth.isAuthenticated, auth.username]);
 
   useEffect(() => {
     fetchLists();
   }, [fetchLists]);
+
+  const toggleLike = async (list: MovieList) => {
+    if (!auth.isAuthenticated || !auth.username) {
+      auth.openLogin();
+      return;
+    }
+    if (likeBusyId != null) return;
+
+    setLikeBusyId(list.id);
+    try {
+      const userId =
+        currentUserId ?? (await getUserIdByUsername(auth.username));
+      if (currentUserId == null) setCurrentUserId(userId);
+
+      const isLiked = likedIds.has(list.id);
+      const result = isLiked
+        ? await unlikeList(userId, list.id)
+        : await likeList(userId, list.id);
+
+      setLikedIds((prev) => {
+        const next = new Set(prev);
+        if (result.liked) next.add(list.id);
+        else next.delete(list.id);
+        return next;
+      });
+
+      setLists((prev) =>
+        prev
+          .map((item) =>
+            item.id === list.id
+              ? { ...item, likeCount: result.likeCount }
+              : item,
+          )
+          .sort(
+            (a, b) =>
+              (b.likeCount ?? 0) - (a.likeCount ?? 0) || a.id - b.id,
+          ),
+      );
+    } catch (e) {
+      setError(
+        e instanceof Error ? e.message : 'No se pudo actualizar el me gusta.',
+      );
+    } finally {
+      setLikeBusyId(null);
+    }
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -68,71 +134,15 @@ export function Social() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
             {lists.map((list) => (
-              <div
+              <PublicListCard
                 key={list.id}
-                className="group rounded-3xl border border-line/10 bg-surface p-6 shadow-[0_1px_2px_rgba(16,12,30,0.03)] transition-all hover:-translate-y-0.5 hover:border-line/15 hover:shadow-[0_30px_60px_-40px_rgba(16,12,30,0.5)]"
-              >
-                <div className="mb-5 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
-                      {list.user?.username.charAt(0).toUpperCase() || 'U'}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-ink">
-                        {list.user?.username || 'Usuario'}
-                      </h3>
-                      <span className="text-xs text-faint">
-                        {list.movies?.length ?? 0} película
-                        {list.movies?.length !== 1 ? 's' : ''}
-                      </span>
-                    </div>
-                  </div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1 text-xs font-semibold text-accent">
-                    <svg viewBox="0 0 24 24" fill="currentColor" className="h-3.5 w-3.5" aria-hidden="true">
-                      <path d="M12 21s-7.5-4.6-9.6-9.1C.8 8.6 2.4 5 5.8 5c2 0 3.4 1.1 4.2 2.4.4.6.6 1.2.6 1.2h2.8s.2-.6.6-1.2C14.8 6.1 16.2 5 18.2 5c3.4 0 5 3.6 3.4 6.9C19.5 16.4 12 21 12 21Z" />
-                    </svg>
-                    {list.likeCount ?? 0}
-                  </span>
-                </div>
-
-                <h4 className="font-heading text-xl font-bold tracking-tight text-ink transition-colors group-hover:text-accent">
-                  {list.name}
-                </h4>
-                {list.description && (
-                  <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted">
-                    {list.description}
-                  </p>
-                )}
-
-                <div className="mt-5 grid grid-cols-4 gap-2.5">
-                  {(list.movies || []).slice(0, 4).map((movie) => (
-                    <div
-                      key={movie.id}
-                      className="relative aspect-[2/3] overflow-hidden rounded-xl bg-gradient-to-br from-[#241d38] via-[#191524] to-[#12212e] ring-1 ring-line/10"
-                    >
-                      <img
-                        src={
-                          movie.posterURL ||
-                          `https://picsum.photos/seed/movienatic-${movie.id}/200/300`
-                        }
-                        alt={movie.title}
-                        loading="lazy"
-                        onError={(event) => {
-                          event.currentTarget.style.visibility = 'hidden';
-                        }}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-                      />
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-2 pb-1.5 pt-6">
-                        <p className="truncate text-[10px] font-medium text-white">
-                          {movie.title}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+                list={list}
+                liked={likedIds.has(list.id)}
+                likeBusy={likeBusyId === list.id}
+                onToggleLike={() => toggleLike(list)}
+              />
             ))}
           </div>
         )}

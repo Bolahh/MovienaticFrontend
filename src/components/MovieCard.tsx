@@ -3,7 +3,7 @@ import { Link } from '../router';
 type MovieCardProps = {
   id: number;
   title: string;
-  // Formato API (mock)
+  // Formato API
   releaseYear?: number;
   averageRating?: number | null;
   posterURL?: string | null;

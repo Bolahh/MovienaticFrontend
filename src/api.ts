@@ -1,24 +1,18 @@
 /**
  * Capa de datos de Movienatic.
  *
- * - Autenticación: API real con JWT (http://localhost:8080).
- * - Resto de datos: mock local mientras se conectan los endpoints.
+ * Todas las operaciones (autenticación, películas, usuarios, listas y reseñas)
+ * se comunican con la API real en http://localhost:8080.
  */
 
-import {
-  GENRES,
-  MOVIE_LISTS,
-  type Genre,
-  type MovieList,
-  type UserBasic,
-} from './data/mockData';
+import type { Genre, MovieList, UserBasic } from './types';
 
 export type {
   Genre,
   Movie,
   MovieList,
   UserBasic,
-} from './data/mockData';
+} from './types';
 
 // ---------------------------------------------------------------------------
 // Tipos de peticiones
@@ -79,6 +73,8 @@ export type MovieFilter = {
   genreIds?: number[];
   director?: string;
   releaseYear?: number;
+  releaseYearFrom?: number;
+  releaseYearTo?: number;
   minRating?: number;
 };
 
@@ -161,6 +157,10 @@ export type UserMovieList = {
   description?: string | null;
   movieCount: number;
   previewPosters: string[];
+  likeCount?: number;
+  userId?: number;
+  username?: string | null;
+  photoURL?: string | null;
 };
 
 export type Pageable = {
@@ -189,7 +189,7 @@ function notifyAuthChange(): void {
   }
 }
 
-// Limpia el token mock de versiones anteriores.
+// Limpia el token de versiones anteriores.
 if (typeof localStorage !== 'undefined') {
   localStorage.removeItem(LEGACY_TOKEN_KEY);
 }
@@ -506,6 +506,12 @@ export async function getMovies(
   if (filter.releaseYear != null) {
     params.set('releaseYear', String(filter.releaseYear));
   }
+  if (filter.releaseYearFrom != null) {
+    params.set('releaseYearFrom', String(filter.releaseYearFrom));
+  }
+  if (filter.releaseYearTo != null) {
+    params.set('releaseYearTo', String(filter.releaseYearTo));
+  }
   if (filter.minRating != null) {
     params.set('minRating', String(filter.minRating));
   }
@@ -543,8 +549,10 @@ export async function getMovieReviews(movieId: number): Promise<Review[]> {
 }
 
 export async function getGenres(): Promise<Genre[]> {
-  await delay(40);
-  return GENRES;
+  return request<Genre[]>('/movies/genres', {
+    auth: false,
+    cache: 'no-store',
+  });
 }
 
 /**
@@ -558,7 +566,8 @@ export async function getUserIdByUsername(username: string): Promise<number> {
   if (cachedUserId?.username === username) return cachedUserId.id;
 
   const response = await request<PageResponse<UserBasic>>('/users?size=1000', {
-    auth: true,
+    auth: false,
+    cache: 'no-store',
   });
   const match = (response.content || []).find(
     (user) => user.username.toLowerCase() === username.toLowerCase()
@@ -647,6 +656,7 @@ export async function getReviewVotes(
 
 export async function getFavourites(userId: number): Promise<MovieSummary[]> {
   return request<MovieSummary[]>(`/users/${userId}/favourites`, {
+    auth: false,
     cache: 'no-store',
   });
 }
@@ -668,6 +678,7 @@ export async function removeFavourite(userId: number, movieId: number): Promise<
 
 export async function getPending(userId: number): Promise<MovieSummary[]> {
   return request<MovieSummary[]>(`/users/${userId}/pending`, {
+    auth: false,
     cache: 'no-store',
   });
 }
@@ -693,6 +704,7 @@ export async function removePending(userId: number, movieId: number): Promise<vo
 
 export async function getLists(userId: number): Promise<UserMovieList[]> {
   return request<UserMovieList[]>(`/users/${userId}/lists`, {
+    auth: false,
     cache: 'no-store',
   });
 }
@@ -702,6 +714,7 @@ export async function getListMovies(
   listId: number
 ): Promise<MovieSummary[]> {
   return request<MovieSummary[]>(`/users/${userId}/lists/${listId}`, {
+    auth: false,
     cache: 'no-store',
   });
 }
@@ -762,11 +775,17 @@ export async function getUsers(
   (pageable.sort ?? []).forEach((sort) => params.append('sort', sort));
   const query = params.toString();
 
-  return request<PageResponse<UserBasic>>(`/users${query ? `?${query}` : ''}`);
+  return request<PageResponse<UserBasic>>(`/users${query ? `?${query}` : ''}`, {
+    auth: false,
+    cache: 'no-store',
+  });
 }
 
 export async function getUserDetail(userId: number): Promise<UserDetail> {
-  return request<UserDetail>(`/users/${userId}`, { cache: 'no-store' });
+  return request<UserDetail>(`/users/${userId}`, {
+    auth: false,
+    cache: 'no-store',
+  });
 }
 
 export async function getUserById(userId: number): Promise<UserBasic> {
@@ -780,12 +799,14 @@ export async function getUserById(userId: number): Promise<UserBasic> {
 
 export async function getFollowing(userId: number): Promise<UserBasic[]> {
   return request<UserBasic[]>(`/users/${userId}/following`, {
+    auth: false,
     cache: 'no-store',
   });
 }
 
 export async function getFollowers(userId: number): Promise<UserBasic[]> {
   return request<UserBasic[]>(`/users/${userId}/followers`, {
+    auth: false,
     cache: 'no-store',
   });
 }
@@ -812,15 +833,74 @@ export async function unfollowUser(
 
 export async function getUserReviews(userId: number): Promise<Review[]> {
   return request<Review[]>(`/users/${userId}/reviews`, {
+    auth: false,
     cache: 'no-store',
   });
 }
 
 // ---------------------------------------------------------------------------
-// Listas públicas (página Social: las más gustadas)
+// Listas públicas (portada y página Social: las más gustadas)
 // ---------------------------------------------------------------------------
 
-export async function getPublicLists(): Promise<MovieList[]> {
-  await delay(120);
-  return [...MOVIE_LISTS].sort((a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0));
+export type ListLikeState = {
+  liked: boolean;
+  likeCount: number;
+};
+
+export async function getPublicLists(limit = 12): Promise<MovieList[]> {
+  // No existe un endpoint de "listas públicas": todas las listas de usuario son
+  // legibles. Agregamos las listas de todos los usuarios y las ordenamos por
+  // número de likes.
+  const usersPage = await getUsers({ page: 0, size: 1000 });
+  const users = usersPage.content ?? [];
+
+  const listsByUser = await Promise.all(
+    users.map((user) =>
+      getLists(user.id).catch(() => [] as UserMovieList[]),
+    ),
+  );
+
+  return listsByUser
+    .flat()
+    .map<MovieList>((list) => ({
+      id: list.id,
+      name: list.name,
+      description: list.description,
+      movieCount: list.movieCount,
+      previewPosters: list.previewPosters,
+      likeCount: list.likeCount ?? 0,
+      userId: list.userId ?? 0,
+      username: list.username ?? undefined,
+      photoURL: list.photoURL ?? undefined,
+    }))
+    .sort(
+      (a, b) =>
+        (b.likeCount ?? 0) - (a.likeCount ?? 0) || a.id - b.id,
+    )
+    .slice(0, limit);
+}
+
+export async function getLikedListIds(userId: number): Promise<number[]> {
+  return request<number[]>(`/users/${userId}/lists/liked`, {
+    auth: false,
+    cache: 'no-store',
+  });
+}
+
+export async function likeList(
+  userId: number,
+  listId: number,
+): Promise<ListLikeState> {
+  return request<ListLikeState>(`/users/${userId}/lists/${listId}/like`, {
+    method: 'POST',
+  });
+}
+
+export async function unlikeList(
+  userId: number,
+  listId: number,
+): Promise<ListLikeState> {
+  return request<ListLikeState>(`/users/${userId}/lists/${listId}/like`, {
+    method: 'DELETE',
+  });
 }

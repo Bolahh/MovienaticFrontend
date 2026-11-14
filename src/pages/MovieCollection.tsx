@@ -57,7 +57,7 @@ export function MovieCollectionPage() {
       const status = (e as { status?: number }).status;
       setError(
         status === 401
-          ? 'Inicia sesión para ver estas listas.'
+          ? 'No se pudo cargar esta lista.'
           : e instanceof Error
             ? e.message
             : 'No se pudo cargar la lista.',

@@ -93,7 +93,7 @@ export function ConnectionsPage() {
       const status = (e as { status?: number }).status;
       setError(
         status === 401
-          ? 'Inicia sesión para ver la comunidad.'
+          ? 'No se pudo cargar la comunidad.'
           : e instanceof Error
             ? e.message
             : 'No se pudieron cargar los usuarios.',

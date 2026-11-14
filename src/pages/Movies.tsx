@@ -35,7 +35,7 @@ export function Movies() {
   // Estado de filtro (se actualiza con debounce)
   const [title, setTitle] = useState('');
   const [selectedGenreId, setSelectedGenreId] = useState<number | undefined>(undefined);
-  const [releaseYear, setReleaseYear] = useState<string>('');
+  const [releaseYearRange, setReleaseYearRange] = useState<string>('');
   const [minRating, setMinRating] = useState(0);
   const [sort, setSort] = useState('');
 
@@ -49,16 +49,28 @@ export function Movies() {
     [genres]
   );
 
-  const yearOptions = useMemo(
-    () => [
-      { value: '', label: 'Cualquier año' },
-      ...[...Array(127)].map((_, index) => {
-        const year = 2026 - index;
-        return { value: String(year), label: String(year) };
-      }),
-    ],
-    []
-  );
+  const yearOptions = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const currentDecade = Math.floor(currentYear / 10) * 10;
+    const options = [{ value: '', label: 'Cualquier año' }];
+
+    // Década actual hasta el año en curso.
+    options.push({
+      value: `${currentDecade}-${currentYear}`,
+      label: `${currentDecade} - ${currentYear}`,
+    });
+
+    // Décadas anteriores completas.
+    for (let decade = currentDecade - 10; decade >= 1900; decade -= 10) {
+      options.push({
+        value: `${decade}-${decade + 9}`,
+        label: `${decade} - ${decade + 9}`,
+      });
+    }
+
+    options.push({ value: '0-1899', label: 'Anteriores a 1900' });
+    return options;
+  }, []);
 
   const sortOptions = useMemo(
     () => [
@@ -72,12 +84,18 @@ export function Movies() {
     []
   );
 
-  // Leer título de la URL (viene del buscador del navbar)
+  // Leer filtros de la URL (buscador del navbar y enlaces de la portada)
   useEffect(() => {
     const params = new URLSearchParams(location.split('?')[1] || '');
     const titleFromUrl = params.get('title') || '';
+    const genreFromUrl = params.get('genreIds');
     setTitle(titleFromUrl);
     setTitleInput(titleFromUrl);
+    setSelectedGenreId(
+      genreFromUrl && Number.isFinite(Number(genreFromUrl))
+        ? Number(genreFromUrl)
+        : undefined,
+    );
     setPage(0);
   }, [location]);
 
@@ -104,28 +122,8 @@ export function Movies() {
       const g = await getGenres();
       setGenres(g);
     } catch {
-      // Géneros reales de la BBDD (visto en DBeaver)
-      setGenres([
-        { id: 1, name: 'Acción' },
-        { id: 2, name: 'Aventura' },
-        { id: 3, name: 'Animación' },
-        { id: 4, name: 'Comedia' },
-        { id: 5, name: 'Crimen' },
-        { id: 6, name: 'Documental' },
-        { id: 7, name: 'Drama' },
-        { id: 8, name: 'Familia' },
-        { id: 9, name: 'Fantasía' },
-        { id: 10, name: 'Historia' },
-        { id: 11, name: 'Terror' },
-        { id: 12, name: 'Música' },
-        { id: 13, name: 'Misterio' },
-        { id: 14, name: 'Romance' },
-        { id: 15, name: 'Ciencia ficción' },
-        { id: 16, name: 'Película de TV' },
-        { id: 17, name: 'Suspense' },
-        { id: 18, name: 'Bélica' },
-        { id: 19, name: 'Western' },
-      ]);
+      // Si el endpoint de géneros falla, dejamos el selector vacío.
+      setGenres([]);
     }
   }, []);
 
@@ -133,9 +131,13 @@ export function Movies() {
     setLoading(true);
     setError('');
     const sortParam = sort ? [sort] : undefined;
+    const [fromRaw, toRaw] = releaseYearRange.split('-');
+    const releaseYearFrom = fromRaw ? Number(fromRaw) : undefined;
+    const releaseYearTo = toRaw ? Number(toRaw) : undefined;
     const filter: MovieFilter = {
       genreIds: selectedGenreId != null ? [selectedGenreId] : undefined,
-      releaseYear: releaseYear ? Number(releaseYear) : undefined,
+      releaseYearFrom,
+      releaseYearTo,
       minRating: minRating > 0 ? minRating : undefined,
     };
     try {
@@ -164,12 +166,12 @@ export function Movies() {
     } finally {
       setLoading(false);
     }
-  }, [page, size, title, selectedGenreId, releaseYear, minRating, sort]);
+  }, [page, size, title, selectedGenreId, releaseYearRange, minRating, sort]);
 
   useEffect(() => {
     fetchGenres();
     fetchMovies();
-  }, [fetchGenres, page, selectedGenreId, releaseYear, minRating, title, sort]);
+  }, [fetchGenres, page, selectedGenreId, releaseYearRange, minRating, title, sort]);
 
   const goToPage = (p: number) => {
     if (p < 0 || p >= totalPages) return;
@@ -251,13 +253,13 @@ export function Movies() {
             </div>
             <div>
               <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
-                Año de salida
+                Rango de años
               </label>
               <Select
-                ariaLabel="Filtrar por año de salida"
-                value={releaseYear}
+                ariaLabel="Filtrar por rango de años"
+                value={releaseYearRange}
                 onChange={(value) => {
-                  setReleaseYear(value);
+                  setReleaseYearRange(value);
                   setPage(0);
                 }}
                 options={yearOptions}

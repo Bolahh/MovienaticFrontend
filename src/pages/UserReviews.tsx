@@ -46,7 +46,7 @@ export function UserReviewsPage() {
       const status = (e as { status?: number }).status;
       setError(
         status === 401
-          ? 'Inicia sesión para ver las reseñas.'
+          ? 'No se pudieron cargar las reseñas.'
           : e instanceof Error
             ? e.message
             : 'No se pudieron cargar las reseñas.',
