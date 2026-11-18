@@ -38,13 +38,12 @@ type GenreSection = {
 
 type HomeData = {
   heroMovies: HeroMovie[];
-  topRated: MovieSummary[];
   lists: MovieList[];
   genreSections: GenreSection[];
 };
 
 // Géneros que se muestran como filas temáticas en la portada.
-const PREFERRED_GENRES = ['Acción', 'Ciencia ficción', 'Terror', 'Comedia'];
+const PREFERRED_GENRES = ['Acción', 'Comedia', 'Terror'];
 
 const MOVIE_GRID =
   'grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 lg:grid-cols-6';
@@ -75,29 +74,42 @@ function pickGenres(genres: Genre[]): Genre[] {
   return chosen.slice(0, PREFERRED_GENRES.length);
 }
 
+/**
+ * Pide películas con valoración, pero si todavía no hay ninguna valorada
+ * (por ejemplo tras reimportar el catálogo) vuelve a pedirlas sin ese filtro
+ * para que la portada nunca se quede vacía.
+ */
+async function getRatedOrAny(
+  pageable: Parameters<typeof getMovies>[0],
+  filter: Parameters<typeof getMovies>[1] = {},
+  minRating = 0.1,
+) {
+  const rated = await getMovies(pageable, { ...filter, minRating });
+  if (rated.content.length > 0) return rated;
+  return getMovies(pageable, filter);
+}
+
 async function loadHomeData(): Promise<HomeData> {
-  const [featuredPage, topPage, lists, genres] = await Promise.all([
-    getMovies(
+  // Hero: estrenos recientes bien valorados.
+  const [heroPage, lists, genres] = await Promise.all([
+    getRatedOrAny(
       { size: 6, sort: ['releaseYear,desc', 'averageRating,desc'] },
-      { minRating: 0.1 },
+      {},
+      3.5,
     ),
-    getMovies({ size: 6, sort: ['averageRating,desc'] }, { minRating: 0.1 }),
     getPublicLists(6),
     getGenres(),
   ]);
 
-  const featured =
-    featuredPage.content.length > 0 ? featuredPage.content : topPage.content;
-
   // La vista resumen no trae descripción ni géneros: pedimos el detalle de las
   // películas del carrusel para poder mostrar la ficha completa en el hero.
   const details = await Promise.all(
-    featured.slice(0, 6).map((movie) =>
+    heroPage.content.slice(0, 6).map((movie) =>
       getMovieDetail(movie.id).catch(() => null),
     ),
   );
 
-  const heroMovies: HeroMovie[] = featured.slice(0, 6).map((movie, index) => {
+  const heroMovies: HeroMovie[] = heroPage.content.slice(0, 6).map((movie, index) => {
     const detail = details[index];
     return {
       id: movie.id,
@@ -112,9 +124,9 @@ async function loadHomeData(): Promise<HomeData> {
 
   const genreSections = await Promise.all(
     pickGenres(genres).map(async (genre) => {
-      const page = await getMovies(
-        { size: 6, sort: ['averageRating,desc'] },
-        { genreIds: [genre.id], minRating: 0.1 },
+      const page = await getRatedOrAny(
+        { size: 6, sort: ['averageRating,desc', 'releaseYear,desc'] },
+        { genreIds: [genre.id] },
       );
       return { id: genre.id, name: genre.name, movies: page.content };
     }),
@@ -122,7 +134,6 @@ async function loadHomeData(): Promise<HomeData> {
 
   return {
     heroMovies,
-    topRated: topPage.content,
     lists,
     genreSections: genreSections.filter((section) => section.movies.length > 0),
   };
@@ -247,31 +258,6 @@ export function Home() {
               pendingBusyId={pendingBusyId}
               onAddPending={handleAddPending}
             />
-
-            {/* Mejor valoradas */}
-            <section className="mb-16">
-              <div className="mb-7">
-                <span className="eyebrow mb-3">Aclamadas</span>
-                <h2 className="section-title">
-                  Las mejor valoradas de Movienatic
-                </h2>
-              </div>
-              <div className={MOVIE_GRID}>
-                {data.topRated.map((movie) => (
-                  <MovieCard
-                    key={movie.id}
-                    id={movie.id}
-                    title={movie.title}
-                    releaseYear={movie.releaseYear}
-                    averageRating={movie.averageRating}
-                    posterURL={movie.posterURL}
-                    to={`/movies/${movie.id}`}
-                  />
-                ))}
-              </div>
-            </section>
-
-            <div className="hairline mb-16" />
 
             {/* Listas con más likes */}
             <section className="mb-16">

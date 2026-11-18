@@ -163,6 +163,16 @@ export type UserMovieList = {
   photoURL?: string | null;
 };
 
+export type UserMovieListDetail = {
+  id: number;
+  name: string;
+  description?: string | null;
+  movies: MovieSummary[];
+  likeCount?: number;
+  userId?: number;
+  username?: string | null;
+};
+
 export type Pageable = {
   page?: number;
   size?: number;
@@ -760,6 +770,23 @@ export async function removeMovieFromList(
     responseType: 'text',
     body: { id: movieId },
   });
+}
+
+export async function getListById(
+  userId: number,
+  listId: number
+): Promise<UserMovieListDetail> {
+  const raw = await request<
+    UserMovieListDetail & {
+      movieList?: MovieSummary[];
+      items?: MovieSummary[];
+    }
+  >(`/users/${userId}/lists/${listId}`);
+
+  return {
+    ...raw,
+    movies: raw.movies ?? raw.movieList ?? raw.items ?? [],
+  };
 }
 
 // ---------------------------------------------------------------------------

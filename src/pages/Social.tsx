@@ -102,7 +102,12 @@ export function Social() {
         onRegister={auth.openRegister}
       />
       <section className="page-container flex-1 py-12 sm:py-16">
-        <div className="mb-10 flex flex-col gap-6 lg:mb-12 lg:flex-row lg:items-end lg:justify-between">
+        <div className="mb-8">
+          <BackLink to="/">
+            Volver al inicio
+          </BackLink>
+        </div>
+        <div className="mb-10 lg:mb-12">
           <div>
             <span className="eyebrow mb-4">Comunidad</span>
             <h1 className="display-title">Social</h1>
@@ -111,9 +116,6 @@ export function Social() {
               que te inspiren.
             </p>
           </div>
-          <BackLink to="/">
-            Volver al inicio
-          </BackLink>
         </div>
 
         <div className="mb-8 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">

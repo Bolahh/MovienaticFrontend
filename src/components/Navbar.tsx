@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Link, useLocation, useNavigate } from '../router';
-import { useAuth } from '../auth/AuthProvider';
-import { useTheme } from '../theme/ThemeProvider';
-import { Logo } from './Logo';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Link, useLocation, useNavigate } from "../router";
+import { useAuth } from "../auth/AuthProvider";
+import { useTheme } from "../theme/ThemeProvider";
+import { Logo } from "./Logo";
 
 type NavbarProps = {
   onLogin?: () => void;
@@ -11,10 +11,18 @@ type NavbarProps = {
 
 type IconProps = { className?: string };
 
-function HomeIcon({ className = '' }: IconProps) {
+function HomeIcon({ className = "" }: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
-      strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
       <path d="M3 10.5 12 3l9 7.5" />
       <path d="M5.5 9.5V21h13V9.5" />
       <path d="M9.5 21v-6h5v6" />
@@ -22,20 +30,36 @@ function HomeIcon({ className = '' }: IconProps) {
   );
 }
 
-function FilmIcon({ className = '' }: IconProps) {
+function FilmIcon({ className = "" }: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
-      strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
       <rect x="3" y="3" width="18" height="18" rx="3" />
       <path d="M7.5 3v18M16.5 3v18M3 7.5h4.5M3 12h18M3 16.5h4.5M16.5 7.5H21M16.5 16.5H21" />
     </svg>
   );
 }
 
-function UsersIcon({ className = '' }: IconProps) {
+function UsersIcon({ className = "" }: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
-      strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
       <path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20" />
       <circle cx="10" cy="7.5" r="3.5" />
       <path d="M20 20v-1.5a3.5 3.5 0 0 0-2.6-3.38M15.5 4.13a3.5 3.5 0 0 1 0 6.74" />
@@ -43,62 +67,107 @@ function UsersIcon({ className = '' }: IconProps) {
   );
 }
 
-function UserIcon({ className = '' }: IconProps) {
+function UserIcon({ className = "" }: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
-      strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
       <circle cx="12" cy="8" r="4" />
       <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
     </svg>
   );
 }
 
-function SearchIcon({ className = '' }: IconProps) {
+function SearchIcon({ className = "" }: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
-      strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
       <circle cx="11" cy="11" r="7" />
       <path d="m20 20-3.2-3.2" />
     </svg>
   );
 }
 
-function MenuIcon({ open, className = '' }: IconProps & { open: boolean }) {
+function MenuIcon({ open, className = "" }: IconProps & { open: boolean }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
-      strokeLinecap="round" className={className} aria-hidden="true">
-      {open ? <path d="m6 6 12 12M18 6 6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      className={className}
+      aria-hidden="true"
+    >
+      {open ? (
+        <path d="m6 6 12 12M18 6 6 18" />
+      ) : (
+        <path d="M4 7h16M4 12h16M4 17h16" />
+      )}
     </svg>
   );
 }
 
-function SunIcon({ className = '' }: IconProps) {
+function SunIcon({ className = "" }: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
-      strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
       <circle cx="12" cy="12" r="4" />
       <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
     </svg>
   );
 }
 
-function MoonIcon({ className = '' }: IconProps) {
+function MoonIcon({ className = "" }: IconProps) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
-      strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
       <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8Z" />
     </svg>
   );
 }
 
 const NAV_ITEMS = [
-  { to: '/', label: 'Inicio', Icon: HomeIcon },
-  { to: '/movies', label: 'Películas', Icon: FilmIcon },
-  { to: '/social', label: 'Social', Icon: UsersIcon },
+  { to: "/", label: "Inicio", Icon: HomeIcon },
+  { to: "/movies", label: "Películas", Icon: FilmIcon },
+  { to: "/social", label: "Social", Icon: UsersIcon },
 ] as const;
 
 function isActivePath(pathname: string, to: string): boolean {
-  return to === '/' ? pathname === '/' : pathname === to || pathname.startsWith(`${to}/`);
+  return to === "/"
+    ? pathname === "/"
+    : pathname === to || pathname.startsWith(`${to}/`);
 }
 
 export function Navbar({ onLogin, onRegister }: NavbarProps) {
@@ -109,14 +178,14 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
   const menuRef = useRef<HTMLDivElement>(null);
 
   const pathname = useMemo(() => {
     try {
       return new URL(location).pathname;
     } catch {
-      return location.split('?')[0];
+      return location.split("?")[0];
     }
   }, [location]);
 
@@ -125,22 +194,22 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
     setMenuOpen(false);
     setMobileOpen(false);
 
-    const params = new URLSearchParams(location.split('?')[1] || '');
-    setSearch(params.get('title') || '');
+    const params = new URLSearchParams(location.split("?")[1] || "");
+    setSearch(params.get("title") || "");
   }, [location]);
 
   // En la página de películas el buscador del navbar también filtra en vivo.
   useEffect(() => {
-    if (pathname !== '/movies') return;
+    if (pathname !== "/movies") return;
 
     const value = search.trim();
     const current =
-      new URLSearchParams(location.split('?')[1] || '').get('title') || '';
+      new URLSearchParams(location.split("?")[1] || "").get("title") || "";
     if (value === current) return;
 
     const timeoutId = window.setTimeout(() => {
       navigate(
-        value ? `/movies?title=${encodeURIComponent(value)}` : '/movies',
+        value ? `/movies?title=${encodeURIComponent(value)}` : "/movies",
         { replace: true },
       );
     }, 300);
@@ -158,8 +227,8 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
       }
     };
 
-    document.addEventListener('mousedown', handlePointerDown);
-    return () => document.removeEventListener('mousedown', handlePointerDown);
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
   }, [menuOpen]);
 
   const handleSearch = (event: FormEvent) => {
@@ -170,7 +239,7 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
     }
   };
 
-  const initial = username?.charAt(0).toUpperCase() || '?';
+  const initial = username?.charAt(0).toUpperCase() || "?";
 
   return (
     <nav className="sticky top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-4">
@@ -194,11 +263,11 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                     <Link
                       key={to}
                       to={to}
-                      aria-current={active ? 'page' : undefined}
+                      aria-current={active ? "page" : undefined}
                       className={`flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-medium tracking-tight transition-all duration-200 ${
                         active
-                          ? 'bg-accent text-white shadow-[0_6px_18px_-8px_rgba(16,12,30,0.65)]'
-                          : 'text-muted hover:bg-surface hover:text-ink'
+                          ? "bg-accent text-white shadow-[0_6px_18px_-8px_rgba(16,12,30,0.65)]"
+                          : "text-muted hover:bg-surface hover:text-ink"
                       }`}
                     >
                       <Icon className="h-4 w-4" />
@@ -209,7 +278,10 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
               </div>
 
               {/* Buscador */}
-              <form onSubmit={handleSearch} className="relative hidden md:block">
+              <form
+                onSubmit={handleSearch}
+                className="relative hidden md:block"
+              >
                 <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
                 <input
                   type="search"
@@ -226,11 +298,23 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                 <button
                   type="button"
                   onClick={toggleTheme}
-                  aria-label={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
-                  title={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+                  aria-label={
+                    theme === "dark"
+                      ? "Cambiar a tema claro"
+                      : "Cambiar a tema oscuro"
+                  }
+                  title={
+                    theme === "dark"
+                      ? "Cambiar a tema claro"
+                      : "Cambiar a tema oscuro"
+                  }
                   className="hidden md:inline-flex h-9 w-9 items-center justify-center rounded-full border border-line/10 bg-surface text-muted transition-all hover:border-line/20 hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
                 >
-                  {theme === 'dark' ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />}
+                  {theme === "dark" ? (
+                    <SunIcon className="h-4 w-4" />
+                  ) : (
+                    <MoonIcon className="h-4 w-4" />
+                  )}
                 </button>
                 {isLoading ? (
                   <div className="h-9 w-24 rounded-full bg-ink/5 animate-pulse" />
@@ -238,7 +322,10 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                   <>
                     <a
                       href="#"
-                      onClick={(e) => { e.preventDefault(); onLogin?.(); }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        onLogin?.();
+                      }}
                       className="hidden sm:inline-flex items-center rounded-full px-3.5 py-2 text-[13px] font-medium text-muted hover:bg-ink/5 hover:text-ink transition-colors whitespace-nowrap"
                     >
                       Iniciar sesión
@@ -265,10 +352,16 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                       <span className="hidden sm:block max-w-[9rem] truncate pr-1">
                         {username}
                       </span>
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
-                        strokeLinecap="round" strokeLinejoin="round"
-                        className={`hidden sm:block mr-1.5 h-3.5 w-3.5 text-faint transition-transform ${menuOpen ? 'rotate-180' : ''}`}
-                        aria-hidden="true">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className={`hidden sm:block mr-1.5 h-3.5 w-3.5 text-faint transition-transform ${menuOpen ? "rotate-180" : ""}`}
+                        aria-hidden="true"
+                      >
                         <path d="m6 9 6 6 6-6" />
                       </svg>
                     </button>
@@ -283,7 +376,9 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                             {username}
                           </p>
                           {email && (
-                            <p className="text-xs text-muted truncate">{email}</p>
+                            <p className="text-xs text-muted truncate">
+                              {email}
+                            </p>
                           )}
                         </div>
                         <div className="my-1 h-px bg-line/10" />
@@ -296,12 +391,12 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                           Mi perfil
                         </Link>
                         <Link
-                          to="/movies"
+                          to="/createList"
                           role="menuitem"
                           className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted hover:bg-accent-soft hover:text-accent transition-colors"
                         >
                           <FilmIcon className="h-4 w-4" />
-                          Explorar películas
+                          Crear lista de películas
                         </Link>
                         <button
                           type="button"
@@ -312,8 +407,16 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                           }}
                           className="w-full flex items-center gap-2 text-left px-3 py-2 rounded-xl text-sm text-danger hover:bg-danger-soft transition-colors"
                         >
-                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
-                            strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4" aria-hidden="true">
+                          <svg
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={1.8}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="h-4 w-4"
+                            aria-hidden="true"
+                          >
                             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                             <path d="m16 17 5-5-5-5M21 12H9" />
                           </svg>
@@ -328,7 +431,7 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                 <button
                   type="button"
                   onClick={() => setMobileOpen((open) => !open)}
-                  aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
+                  aria-label={mobileOpen ? "Cerrar menú" : "Abrir menú"}
                   aria-expanded={mobileOpen}
                   className="md:hidden inline-flex h-10 w-10 items-center justify-center rounded-full border border-line/10 bg-surface text-muted hover:bg-surface-2 hover:text-accent transition-colors"
                 >
@@ -359,11 +462,11 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                       <Link
                         key={to}
                         to={to}
-                        aria-current={active ? 'page' : undefined}
+                        aria-current={active ? "page" : undefined}
                         className={`flex items-center gap-2.5 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors ${
                           active
-                            ? 'bg-accent text-white'
-                            : 'text-muted hover:bg-ink/5 hover:text-ink'
+                            ? "bg-accent text-white"
+                            : "text-muted hover:bg-ink/5 hover:text-ink"
                         }`}
                       >
                         <Icon className="h-4 w-4" />
@@ -402,23 +505,33 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                     type="button"
                     onClick={toggleTheme}
                     role="switch"
-                    aria-checked={theme === 'light'}
-                    aria-label={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+                    aria-checked={theme === "light"}
+                    aria-label={
+                      theme === "dark"
+                        ? "Cambiar a tema claro"
+                        : "Cambiar a tema oscuro"
+                    }
                     className="flex items-center justify-between gap-2.5 rounded-2xl px-3 py-2.5 text-sm font-medium text-muted hover:bg-ink/5 hover:text-ink transition-colors"
                   >
                     <span className="flex items-center gap-2.5">
-                      {theme === 'light' ? <SunIcon className="h-4 w-4" /> : <MoonIcon className="h-4 w-4" />}
+                      {theme === "light" ? (
+                        <SunIcon className="h-4 w-4" />
+                      ) : (
+                        <MoonIcon className="h-4 w-4" />
+                      )}
                       Tema claro
                     </span>
                     <span
                       aria-hidden="true"
                       className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
-                        theme === 'light' ? 'bg-accent' : 'bg-line/20'
+                        theme === "light" ? "bg-accent" : "bg-line/20"
                       }`}
                     >
                       <span
                         className={`absolute h-4 w-4 rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.35)] transition-transform ${
-                          theme === 'light' ? 'translate-x-[18px]' : 'translate-x-0.5'
+                          theme === "light"
+                            ? "translate-x-[18px]"
+                            : "translate-x-0.5"
                         }`}
                       />
                     </span>
