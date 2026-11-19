@@ -1,18 +1,19 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from "react";
 import {
   getLikedListIds,
-  getPublicLists,
+  getListsOrderedByLikes,
   getUserIdByUsername,
   likeList,
   unlikeList,
   type MovieList,
-} from '../api';
-import { Navbar } from '../components/Navbar';
-import { Footer } from '../components/Footer';
-import { BackLink } from '../components/BackLink';
-import { PublicListCard } from '../components/PublicListCard';
-import { useAuthFlow } from '../components/AuthFlow';
-import { Loading, ErrorState } from '../components/Spinner';
+} from "../api";
+import { Navbar } from "../components/Navbar";
+import { Footer } from "../components/Footer";
+import { BackLink } from "../components/BackLink";
+import { PublicListCard } from "../components/PublicListCard";
+import { useAuthFlow } from "../components/AuthFlow";
+import { Loading, ErrorState } from "../components/Spinner";
+import Button from "../components/Button";
 
 export function Social() {
   const auth = useAuthFlow();
@@ -21,14 +22,20 @@ export function Social() {
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [likeBusyId, setLikeBusyId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
+
+  // Estados de paginación
+  const [page, setPage] = useState(0);
+  const [size] = useState(12);
+  const [totalPages, setTotalPages] = useState(1);
 
   const fetchLists = useCallback(async () => {
     setLoading(true);
-    setError('');
+    setError("");
     try {
-      const ls = await getPublicLists(50);
-      setLists(ls);
+      const res = await getListsOrderedByLikes(page, size);
+      setLists(res.content || []);
+      setTotalPages(Math.max(1, res.totalPages || 1));
 
       if (auth.isAuthenticated && auth.username) {
         const userId = await getUserIdByUsername(auth.username);
@@ -39,15 +46,23 @@ export function Social() {
         setLikedIds(new Set());
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'No se pudieron cargar las listas.');
+      setError(
+        e instanceof Error ? e.message : "No se pudieron cargar las listas.",
+      );
     } finally {
       setLoading(false);
     }
-  }, [auth.isAuthenticated, auth.username]);
+  }, [page, size, auth.isAuthenticated, auth.username]);
 
   useEffect(() => {
     fetchLists();
   }, [fetchLists]);
+
+  const goToPage = (p: number) => {
+    if (p < 0 || p >= totalPages) return;
+    setPage(p);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const toggleLike = async (list: MovieList) => {
     if (!auth.isAuthenticated || !auth.username) {
@@ -82,13 +97,12 @@ export function Social() {
               : item,
           )
           .sort(
-            (a, b) =>
-              (b.likeCount ?? 0) - (a.likeCount ?? 0) || a.id - b.id,
+            (a, b) => (b.likeCount ?? 0) - (a.likeCount ?? 0) || a.id - b.id,
           ),
       );
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : 'No se pudo actualizar el me gusta.',
+        e instanceof Error ? e.message : "No se pudo actualizar el me gusta.",
       );
     } finally {
       setLikeBusyId(null);
@@ -97,15 +111,10 @@ export function Social() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Navbar
-        onLogin={auth.openLogin}
-        onRegister={auth.openRegister}
-      />
+      <Navbar onLogin={auth.openLogin} onRegister={auth.openRegister} />
       <section className="page-container flex-1 py-12 sm:py-16">
         <div className="mb-8">
-          <BackLink to="/">
-            Volver al inicio
-          </BackLink>
+          <BackLink to="/">Volver al inicio</BackLink>
         </div>
         <div className="mb-10 lg:mb-12">
           <div>
@@ -119,7 +128,16 @@ export function Social() {
         </div>
 
         <div className="mb-8 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-faint">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-3.5 w-3.5"
+            aria-hidden="true"
+          >
             <path d="M3 6h18M3 12h12M3 18h6" />
           </svg>
           Ordenadas por popularidad
@@ -136,17 +154,44 @@ export function Social() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {lists.map((list) => (
-              <PublicListCard
-                key={list.id}
-                list={list}
-                liked={likedIds.has(list.id)}
-                likeBusy={likeBusyId === list.id}
-                onToggleLike={() => toggleLike(list)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {lists.map((list) => (
+                <PublicListCard
+                  key={list.id}
+                  list={list}
+                  liked={likedIds.has(list.id)}
+                  likeBusy={likeBusyId === list.id}
+                  onToggleLike={() => toggleLike(list)}
+                />
+              ))}
+            </div>
+
+            {/* Paginación */}
+            {totalPages > 1 && (
+              <div className="mt-12 flex items-center justify-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => goToPage(page - 1)}
+                  disabled={page === 0}
+                >
+                  Anterior
+                </Button>
+                <span className="rounded-full border border-line/10 bg-surface px-4 py-1.5 text-xs font-medium text-muted">
+                  Página {page + 1} de {totalPages}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => goToPage(page + 1)}
+                  disabled={page === totalPages - 1}
+                >
+                  Siguiente
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </section>
       <Footer />

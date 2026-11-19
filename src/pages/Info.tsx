@@ -340,7 +340,7 @@ const CONTENT: Record<string, PageContent> = {
         bullets: [
           'Almacenamiento técnico de sesión: guardamos el token de autenticación en la clave movienatic_token para mantener tu sesión iniciada.',
           'Preferencias de cuenta: guardamos datos básicos del usuario en la clave movienatic_user para mostrar tu nombre en la interfaz.',
-          'Preferencias de uso: recordamos opciones como «Recuérdame» mientras tu sesión esté activa.',
+          'Preferencias de uso: recordamos tus preferencias de sesión mientras esté activa.',
           'No utilizamos cookies publicitarias ni de perfilado.',
         ],
       },

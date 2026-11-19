@@ -664,8 +664,24 @@ export async function getReviewVotes(
 // Favoritos / Pendientes
 // ---------------------------------------------------------------------------
 
-export async function getFavourites(userId: number): Promise<MovieSummary[]> {
-  return request<MovieSummary[]>(`/users/${userId}/favourites`, {
+export async function getFavourites(
+  userId: number,
+  pageable: Pageable = {}
+): Promise<MoviePageResponse> {
+  const params = new URLSearchParams();
+  params.set('page', String(pageable.page ?? 0));
+  params.set('size', String(pageable.size ?? 20));
+  return request<MoviePageResponse>(
+    `/users/${userId}/favourites?${params.toString()}`,
+    { auth: false, cache: 'no-store' },
+  );
+}
+
+export async function isFavourite(
+  userId: number,
+  movieId: number
+): Promise<boolean> {
+  return request<boolean>(`/users/${userId}/favourites/${movieId}`, {
     auth: false,
     cache: 'no-store',
   });
@@ -686,8 +702,24 @@ export async function removeFavourite(userId: number, movieId: number): Promise<
   });
 }
 
-export async function getPending(userId: number): Promise<MovieSummary[]> {
-  return request<MovieSummary[]>(`/users/${userId}/pending`, {
+export async function getPending(
+  userId: number,
+  pageable: Pageable = {}
+): Promise<MoviePageResponse> {
+  const params = new URLSearchParams();
+  params.set('page', String(pageable.page ?? 0));
+  params.set('size', String(pageable.size ?? 20));
+  return request<MoviePageResponse>(
+    `/users/${userId}/pending?${params.toString()}`,
+    { auth: false, cache: 'no-store' },
+  );
+}
+
+export async function isPending(
+  userId: number,
+  movieId: number
+): Promise<boolean> {
+  return request<boolean>(`/users/${userId}/pending/${movieId}`, {
     auth: false,
     cache: 'no-store',
   });
@@ -721,12 +753,16 @@ export async function getLists(userId: number): Promise<UserMovieList[]> {
 
 export async function getListMovies(
   userId: number,
-  listId: number
-): Promise<MovieSummary[]> {
-  return request<MovieSummary[]>(`/users/${userId}/lists/${listId}`, {
-    auth: false,
-    cache: 'no-store',
-  });
+  listId: number,
+  pageable: Pageable = {}
+): Promise<MoviePageResponse> {
+  const params = new URLSearchParams();
+  params.set('page', String(pageable.page ?? 0));
+  params.set('size', String(pageable.size ?? 20));
+  return request<MoviePageResponse>(
+    `/users/${userId}/lists/${listId}?${params.toString()}`,
+    { auth: false, cache: 'no-store' },
+  );
 }
 
 export async function addList(
@@ -874,37 +910,26 @@ export type ListLikeState = {
   likeCount: number;
 };
 
-export async function getPublicLists(limit = 12): Promise<MovieList[]> {
-  // No existe un endpoint de "listas públicas": todas las listas de usuario son
-  // legibles. Agregamos las listas de todos los usuarios y las ordenamos por
-  // número de likes.
-  const usersPage = await getUsers({ page: 0, size: 1000 });
-  const users = usersPage.content ?? [];
+export interface MovieListPageResponse {
+  content: MovieList[];
+  totalPages: number;
+  totalElements: number;
+  number: number;
+  size: number;
+}
 
-  const listsByUser = await Promise.all(
-    users.map((user) =>
-      getLists(user.id).catch(() => [] as UserMovieList[]),
-    ),
+export async function getListsOrderedByLikes(
+  page = 0,
+  size = 12,
+): Promise<PageResponse<MovieList>> {
+  const params = new URLSearchParams();
+  params.set('page', String(page));
+  params.set('size', String(size));
+
+  return request<PageResponse<MovieList>>(
+    `/users/lists/popular?${params.toString()}`,
+    { auth: false, cache: 'no-store' },
   );
-
-  return listsByUser
-    .flat()
-    .map<MovieList>((list) => ({
-      id: list.id,
-      name: list.name,
-      description: list.description,
-      movieCount: list.movieCount,
-      previewPosters: list.previewPosters,
-      likeCount: list.likeCount ?? 0,
-      userId: list.userId ?? 0,
-      username: list.username ?? undefined,
-      photoURL: list.photoURL ?? undefined,
-    }))
-    .sort(
-      (a, b) =>
-        (b.likeCount ?? 0) - (a.likeCount ?? 0) || a.id - b.id,
-    )
-    .slice(0, limit);
 }
 
 export async function getLikedListIds(userId: number): Promise<number[]> {

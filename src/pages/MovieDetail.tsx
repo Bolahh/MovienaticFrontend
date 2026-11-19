@@ -6,12 +6,12 @@ import {
   addReview,
   deleteReview,
   dislikeReview,
-  getFavourites,
   getMovieDetail,
   getMovieReviews,
-  getPending,
   getReviewVotes,
   getUserIdByUsername,
+  isFavourite as checkFavourite,
+  isPending as checkPending,
   likeReview,
   removeFavourite,
   removePending,
@@ -300,11 +300,11 @@ export function MovieDetailPage() {
       return;
     }
 
-    Promise.all([getFavourites(currentUserId), getPending(currentUserId)])
-      .then(([favourites, pending]) => {
+    Promise.all([checkFavourite(currentUserId, id), checkPending(currentUserId, id)])
+      .then(([favourite, pending]) => {
         if (cancelled) return;
-        setIsFavourite(favourites.some((item) => item.id === id));
-        setIsPending(pending.some((item) => item.id === id));
+        setIsFavourite(favourite);
+        setIsPending(pending);
       })
       .catch(() => {
         if (cancelled) return;

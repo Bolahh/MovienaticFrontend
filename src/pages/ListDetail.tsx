@@ -14,6 +14,7 @@ import { BackLink } from '../components/BackLink';
 import { useAuthFlow } from '../components/AuthFlow';
 import { Loading, ErrorState } from '../components/Spinner';
 import { MovieCard } from '../components/MovieCard';
+import Button from '../components/Button';
 
 export function ListDetailPage() {
   const { userId, listId } = useParams();
@@ -27,6 +28,10 @@ export function ListDetailPage() {
   const [movies, setMovies] = useState<MovieSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const size = 20;
 
   const load = async () => {
     if (
@@ -47,7 +52,7 @@ export function ListDetailPage() {
       const [userDetail, userLists, listMovies] = await Promise.all([
         getUserDetail(profileId),
         getLists(profileId),
-        getListMovies(profileId, numericListId),
+        getListMovies(profileId, numericListId, { page, size }),
       ]);
 
       const match = (userLists ?? []).find(
@@ -64,7 +69,9 @@ export function ListDetailPage() {
 
       setDetail(userDetail);
       setList(match);
-      setMovies(listMovies ?? []);
+      setMovies(listMovies.content ?? []);
+      setTotalPages(listMovies.totalPages || 1);
+      setTotalElements(listMovies.totalElements || 0);
     } catch (e) {
       const status = (e as { status?: number }).status;
       setError(
@@ -83,9 +90,13 @@ export function ListDetailPage() {
   };
 
   useEffect(() => {
+    setPage(0);
+  }, [profileId, numericListId]);
+
+  useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileId, numericListId]);
+  }, [profileId, numericListId, page]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -135,7 +146,7 @@ export function ListDetailPage() {
             </header>
 
             <section className="mt-10">
-              {movies.length === 0 ? (
+              {totalElements === 0 ? (
                 <p className="rounded-2xl border border-dashed border-line/10 bg-surface/60 px-5 py-10 text-sm text-faint">
                   Esta lista todavía está vacía.
                 </p>
@@ -152,6 +163,32 @@ export function ListDetailPage() {
                       to={`/movies/${movie.id}`}
                     />
                   ))}
+                </div>
+              )}
+
+              {totalPages > 1 && (
+                <div className="mt-12 flex items-center justify-center gap-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPage((current) => Math.max(0, current - 1))}
+                    disabled={page === 0}
+                  >
+                    Anterior
+                  </Button>
+                  <span className="rounded-full border border-line/10 bg-surface px-4 py-1.5 text-xs font-medium text-muted">
+                    Página {page + 1} de {totalPages}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setPage((current) => Math.min(totalPages - 1, current + 1))
+                    }
+                    disabled={page >= totalPages - 1}
+                  >
+                    Siguiente
+                  </Button>
                 </div>
               )}
             </section>

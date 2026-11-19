@@ -1,22 +1,25 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useLocation } from '../router';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate, useLocation } from "../router";
 import {
   getMovies,
   getGenres,
   type MovieSummary,
   type Genre,
   type MovieFilter,
-} from '../api';
-import { MovieCard } from '../components/MovieCard';
-import { Select } from '../components/Select';
-import { StarRatingInput } from '../components/StarRatingInput';
-import { Navbar } from '../components/Navbar';
-import { Footer } from '../components/Footer';
-import { BackLink } from '../components/BackLink';
-import { useAuthFlow } from '../components/AuthFlow';
-import { Loading, ErrorState } from '../components/Spinner';
-import Button from '../components/Button';
-import { matchesSearch } from '../lib/search';
+} from "../api";
+import { MovieCard } from "../components/MovieCard";
+import { Select } from "../components/Select";
+import { YearRangeSlider } from "../components/YearRangeSlider";
+import { StarRatingInput } from "../components/StarRatingInput";
+import { Navbar } from "../components/Navbar";
+import { Footer } from "../components/Footer";
+import { BackLink } from "../components/BackLink";
+import { useAuthFlow } from "../components/AuthFlow";
+import { Loading, ErrorState } from "../components/Spinner";
+import Button from "../components/Button";
+import { matchesSearch } from "../lib/search";
+
+const MIN_YEAR = 1900;
 
 export function Movies() {
   const navigate = useNavigate();
@@ -24,58 +27,81 @@ export function Movies() {
   const [movies, setMovies] = useState<MovieSummary[]>([]);
   const [genres, setGenres] = useState<Genre[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
   const [page, setPage] = useState(0);
   const [size] = useState(20);
 
   // Filtros - estado de input (inmediato, no interrumpe escritura)
-  const [titleInput, setTitleInput] = useState('');
+  const [titleInput, setTitleInput] = useState("");
   // Estado de filtro (se actualiza con debounce)
-  const [title, setTitle] = useState('');
-  const [selectedGenreId, setSelectedGenreId] = useState<number | undefined>(undefined);
-  const [releaseYearFrom, setReleaseYearFrom] = useState<string>('');
-  const [releaseYearTo, setReleaseYearTo] = useState<string>('');
+  const [title, setTitle] = useState("");
+  const [selectedGenreId, setSelectedGenreId] = useState<number | undefined>(
+    undefined,
+  );
+  // Estados de filtro que disparan la petición al backend
+  const [releaseYearFrom, setReleaseYearFrom] = useState<string>("");
+  const [releaseYearTo, setReleaseYearTo] = useState<string>("");
   const [minRating, setMinRating] = useState(0);
-  const [sort, setSort] = useState('');
+  const [sort, setSort] = useState("");
 
   const location = useLocation();
 
   const genreOptions = useMemo(
     () => [
-      { value: '', label: 'Todos los géneros' },
-      ...genres.map((genre) => ({ value: String(genre.id), label: genre.name })),
+      { value: "", label: "Todos los géneros" },
+      ...genres.map((genre) => ({
+        value: String(genre.id),
+        label: genre.name,
+      })),
     ],
-    [genres]
+    [genres],
   );
 
-  const yearOptions = useMemo(() => {
-    const currentYear = new Date().getFullYear();
-    const options = [{ value: '', label: 'Cualquiera' }];
-    for (let year = currentYear; year >= 1900; year -= 1) {
-      options.push({ value: String(year), label: String(year) });
-    }
-    return options;
-  }, []);
+  const currentYear = useMemo(() => new Date().getFullYear(), []);
 
+  const yearFrom = releaseYearFrom ? Number(releaseYearFrom) : MIN_YEAR;
+  const yearTo = releaseYearTo ? Number(releaseYearTo) : currentYear;
+
+  // Estados visuales inmediatos mientras se arrastra el slider
+  const [draftYearFrom, setDraftYearFrom] = useState<number>(MIN_YEAR);
+  const [draftYearTo, setDraftYearTo] = useState<number>(currentYear);
+
+  // Actualiza solo la vista mientras arrastras (no dispara fetchMovies)
+  const handleYearChange = (nextFrom: number, nextTo: number) => {
+    setDraftYearFrom(nextFrom);
+    setDraftYearTo(nextTo);
+  };
+
+  // Confirma el filtro cuando sueltas el círculo del slider
+  const commitYearChange = (nextFrom = draftYearFrom, nextTo = draftYearTo) => {
+    const formattedFrom = nextFrom <= MIN_YEAR ? "" : String(nextFrom);
+    const formattedTo = nextTo >= currentYear ? "" : String(nextTo);
+
+    if (formattedFrom !== releaseYearFrom || formattedTo !== releaseYearTo) {
+      setReleaseYearFrom(formattedFrom);
+      setReleaseYearTo(formattedTo);
+      setPage(0);
+    }
+  };
   const sortOptions = useMemo(
     () => [
-      { value: '', label: 'Orden por defecto' },
-      { value: 'title,asc', label: 'Título (A-Z)' },
-      { value: 'title,desc', label: 'Título (Z-A)' },
-      { value: 'releaseYear,desc', label: 'Año (más reciente)' },
-      { value: 'releaseYear,asc', label: 'Año (más antiguo)' },
-      { value: 'averageRating,desc', label: 'Mejor valoradas' },
+      { value: "", label: "Orden por defecto" },
+      { value: "title,asc", label: "Título (A-Z)" },
+      { value: "title,desc", label: "Título (Z-A)" },
+      { value: "releaseYear,desc", label: "Año (más reciente)" },
+      { value: "releaseYear,asc", label: "Año (más antiguo)" },
+      { value: "averageRating,desc", label: "Mejor valoradas" },
     ],
-    []
+    [],
   );
 
   // Leer filtros de la URL (buscador del navbar y enlaces de la portada)
   useEffect(() => {
-    const params = new URLSearchParams(location.split('?')[1] || '');
-    const titleFromUrl = params.get('title') || '';
-    const genreFromUrl = params.get('genreIds');
+    const params = new URLSearchParams(location.split("?")[1] || "");
+    const titleFromUrl = params.get("title") || "";
+    const genreFromUrl = params.get("genreIds");
     setTitle(titleFromUrl);
     setTitleInput(titleFromUrl);
     setSelectedGenreId(
@@ -96,7 +122,7 @@ export function Movies() {
       setTitle(value);
       setPage(0);
       navigate(
-        value ? `/movies?title=${encodeURIComponent(value)}` : '/movies',
+        value ? `/movies?title=${encodeURIComponent(value)}` : "/movies",
         { replace: true },
       );
     }, 300);
@@ -116,7 +142,7 @@ export function Movies() {
 
   const fetchMovies = useCallback(async () => {
     setLoading(true);
-    setError('');
+    setError("");
     const sortParam = sort ? [sort] : undefined;
     const filter: MovieFilter = {
       genreIds: selectedGenreId != null ? [selectedGenreId] : undefined,
@@ -128,7 +154,10 @@ export function Movies() {
       if (title) {
         // El backend distingue tildes al filtrar por título. Traemos el conjunto
         // que cumple el resto de filtros y buscamos aquí sin tildes ni mayúsculas.
-        const all = await getMovies({ page: 0, size: 1000, sort: sortParam }, filter);
+        const all = await getMovies(
+          { page: 0, size: 1000, sort: sortParam },
+          filter,
+        );
         const filtered = (all.content || []).filter((movie) =>
           matchesSearch(movie.title, title),
         );
@@ -146,16 +175,34 @@ export function Movies() {
         setTotalElements(res.totalElements || 0);
       }
     } catch (e: any) {
-      setError(e.message || 'No se pudieron cargar las películas.');
+      setError(e.message || "No se pudieron cargar las películas.");
     } finally {
       setLoading(false);
     }
-  }, [page, size, title, selectedGenreId, releaseYearFrom, releaseYearTo, minRating, sort]);
+  }, [
+    page,
+    size,
+    title,
+    selectedGenreId,
+    releaseYearFrom,
+    releaseYearTo,
+    minRating,
+    sort,
+  ]);
 
   useEffect(() => {
     fetchGenres();
     fetchMovies();
-  }, [fetchGenres, page, selectedGenreId, releaseYearFrom, releaseYearTo, minRating, title, sort]);
+  }, [
+    fetchGenres,
+    page,
+    selectedGenreId,
+    releaseYearFrom,
+    releaseYearTo,
+    minRating,
+    title,
+    sort,
+  ]);
 
   const goToPage = (p: number) => {
     if (p < 0 || p >= totalPages) return;
@@ -166,7 +213,7 @@ export function Movies() {
     const value = titleInput.trim();
     setTitle(value);
     setPage(0);
-    navigate(value ? `/movies?title=${encodeURIComponent(value)}` : '/movies');
+    navigate(value ? `/movies?title=${encodeURIComponent(value)}` : "/movies");
   };
 
   const handleLogin = () => {
@@ -179,23 +226,19 @@ export function Movies() {
 
   return (
     <>
-      <Navbar
-        onLogin={handleLogin}
-        onRegister={handleRegister}
-      />
+      <Navbar onLogin={handleLogin} onRegister={handleRegister} />
       <section className="page-container flex-1 py-12 sm:py-16">
         <div className="mb-8">
-          <BackLink to="/">
-            Volver al inicio
-          </BackLink>
+          <BackLink to="/">Volver al inicio</BackLink>
         </div>
         <div className="mb-10 lg:mb-12">
           <div>
             <span className="eyebrow mb-4">Catálogo</span>
             <h1 className="display-title">Películas</h1>
             <p className="mt-4 text-sm text-muted">
-              <span className="font-semibold text-ink">{totalElements}</span>{' '}
-              película{totalElements !== 1 ? 's' : ''} encontrada{totalElements !== 1 ? 's' : ''}
+              <span className="font-semibold text-ink">{totalElements}</span>{" "}
+              película{totalElements !== 1 ? "s" : ""} encontrada
+              {totalElements !== 1 ? "s" : ""}
             </p>
           </div>
         </div>
@@ -214,7 +257,7 @@ export function Movies() {
                   setTitleInput(e.target.value);
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
+                  if (e.key === "Enter") {
                     e.preventDefault();
                     handleSearchTitle();
                   }
@@ -229,7 +272,7 @@ export function Movies() {
               </label>
               <Select
                 ariaLabel="Filtrar por género"
-                value={selectedGenreId != null ? String(selectedGenreId) : ''}
+                value={selectedGenreId != null ? String(selectedGenreId) : ""}
                 onChange={(value) => {
                   setSelectedGenreId(value ? Number(value) : undefined);
                   setPage(0);
@@ -237,38 +280,27 @@ export function Movies() {
                 options={genreOptions}
               />
             </div>
-            <div>
-              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
-                Año desde
-              </label>
-              <Select
-                ariaLabel="Filtrar desde el año"
-                value={releaseYearFrom}
-                onChange={(value) => {
-                  setReleaseYearFrom(value);
-                  if (value && releaseYearTo && Number(value) > Number(releaseYearTo)) {
-                    setReleaseYearTo(value);
-                  }
-                  setPage(0);
-                }}
-                options={yearOptions}
-              />
-            </div>
-            <div>
-              <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
-                Año hasta
-              </label>
-              <Select
-                ariaLabel="Filtrar hasta el año"
-                value={releaseYearTo}
-                onChange={(value) => {
-                  setReleaseYearTo(value);
-                  if (value && releaseYearFrom && Number(value) < Number(releaseYearFrom)) {
-                    setReleaseYearFrom(value);
-                  }
-                  setPage(0);
-                }}
-                options={yearOptions}
+            <div
+              className="md:col-span-2"
+              onPointerUp={() => commitYearChange()}
+              onKeyUp={() => commitYearChange()}
+            >
+              <div className="mb-2 flex items-baseline justify-between gap-3">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
+                  Año de estreno
+                </label>
+                <span className="text-xs font-medium tabular-nums text-ink">
+                  {draftYearFrom === MIN_YEAR && draftYearTo === currentYear
+                    ? "Cualquier año"
+                    : `${draftYearFrom} – ${draftYearTo}`}
+                </span>
+              </div>
+              <YearRangeSlider
+                min={MIN_YEAR}
+                max={currentYear}
+                from={draftYearFrom}
+                to={draftYearTo}
+                onChange={handleYearChange}
               />
             </div>
             <div>
@@ -310,16 +342,18 @@ export function Movies() {
             <p className="text-base text-muted">
               No se encontraron películas con esos filtros.
             </p>
-            <Button onClick={() => {
-              setTitle('');
-              setTitleInput('');
-              setSelectedGenreId(undefined);
-              setReleaseYearFrom('');
-              setReleaseYearTo('');
-              setMinRating(0);
-              setSort('');
-              setPage(0);
-            }}>
+            <Button
+              onClick={() => {
+                setTitle("");
+                setTitleInput("");
+                setSelectedGenreId(undefined);
+                setReleaseYearFrom("");
+                setReleaseYearTo("");
+                setMinRating(0);
+                setSort("");
+                setPage(0);
+              }}
+            >
               Limpiar filtros
             </Button>
           </div>
@@ -362,8 +396,8 @@ export function Movies() {
           </>
         )}
       </section>
-    <Footer />
-    {auth.modals}
+      <Footer />
+      {auth.modals}
     </>
   );
 }

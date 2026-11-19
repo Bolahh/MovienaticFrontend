@@ -246,15 +246,15 @@ export function ProfilePage() {
     try {
       const [userDetail, favs, pend, userLists, userReviews] = await Promise.all([
         getUserDetail(profileId),
-        getFavourites(profileId),
-        getPending(profileId),
+        getFavourites(profileId, { page: 0, size: 6 }),
+        getPending(profileId, { page: 0, size: 6 }),
         getLists(profileId),
         getUserReviews(profileId),
       ]);
 
       setDetail(userDetail);
-      setFavourites(favs ?? []);
-      setPending(pend ?? []);
+      setFavourites(favs.content ?? []);
+      setPending(pend.content ?? []);
       setLists(userLists ?? []);
       setReviews(userReviews ?? []);
     } catch (e) {
@@ -453,7 +453,7 @@ export function ProfilePage() {
               <SectionHeader
                 eyebrow="Siempre a mano"
                 title="Películas favoritas"
-                count={favourites.length}
+                count={detail.favouriteCount}
               />
               {favourites.length === 0 ? (
                 <EmptyState>Este usuario no tiene películas favoritas.</EmptyState>
@@ -472,7 +472,7 @@ export function ProfilePage() {
               <SectionHeader
                 eyebrow="Para más adelante"
                 title="Películas pendientes"
-                count={pending.length}
+                count={detail.pendingCount}
               />
               {pending.length === 0 ? (
                 <EmptyState>No hay películas pendientes.</EmptyState>

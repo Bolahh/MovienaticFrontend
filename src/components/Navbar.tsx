@@ -9,6 +9,8 @@ type NavbarProps = {
   onRegister?: () => void;
 };
 
+type SearchScope = "movies" | "users";
+
 type IconProps = { className?: string };
 
 function HomeIcon({ className = "" }: IconProps) {
@@ -179,6 +181,7 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [searchScope, setSearchScope] = useState<SearchScope>("movies");
   const menuRef = useRef<HTMLDivElement>(null);
 
   const pathname = useMemo(() => {
@@ -189,33 +192,57 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
     }
   }, [location]);
 
-  // Al cambiar de ruta cerramos menús y sincronizamos el buscador con ?title=.
+  // Al cambiar de ruta cerramos menús y sincronizamos el buscador con ?title= o ?user=.
   useEffect(() => {
     setMenuOpen(false);
     setMobileOpen(false);
 
     const params = new URLSearchParams(location.split("?")[1] || "");
-    setSearch(params.get("title") || "");
-  }, [location]);
+    if (pathname === "/social" || params.has("user")) {
+      setSearchScope("users");
+      setSearch(params.get("user") || "");
+    } else if (pathname === "/movies" || params.has("title")) {
+      setSearchScope("movies");
+      setSearch(params.get("title") || "");
+    } else {
+      setSearch("");
+    }
+  }, [location, pathname]);
 
-  // En la página de películas el buscador del navbar también filtra en vivo.
+  // En /movies o /social el buscador del navbar filtra en vivo según el modo activo.
   useEffect(() => {
-    if (pathname !== "/movies") return;
+    if (searchScope === "movies" && pathname === "/movies") {
+      const value = search.trim();
+      const current =
+        new URLSearchParams(location.split("?")[1] || "").get("title") || "";
+      if (value === current) return;
 
-    const value = search.trim();
-    const current =
-      new URLSearchParams(location.split("?")[1] || "").get("title") || "";
-    if (value === current) return;
+      const timeoutId = window.setTimeout(() => {
+        navigate(
+          value ? `/movies?title=${encodeURIComponent(value)}` : "/movies",
+          { replace: true },
+        );
+      }, 300);
 
-    const timeoutId = window.setTimeout(() => {
-      navigate(
-        value ? `/movies?title=${encodeURIComponent(value)}` : "/movies",
-        { replace: true },
-      );
-    }, 300);
+      return () => window.clearTimeout(timeoutId);
+    }
 
-    return () => window.clearTimeout(timeoutId);
-  }, [search, location, pathname, navigate]);
+    if (searchScope === "users" && pathname === "/social") {
+      const value = search.trim();
+      const current =
+        new URLSearchParams(location.split("?")[1] || "").get("user") || "";
+      if (value === current) return;
+
+      const timeoutId = window.setTimeout(() => {
+        navigate(
+          value ? `/social?user=${encodeURIComponent(value)}` : "/social",
+          { replace: true },
+        );
+      }, 300);
+
+      return () => window.clearTimeout(timeoutId);
+    }
+  }, [search, searchScope, location, pathname, navigate]);
 
   // Cierra el menú de usuario al hacer clic fuera.
   useEffect(() => {
@@ -234,12 +261,18 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
   const handleSearch = (event: FormEvent) => {
     event.preventDefault();
     const value = search.trim();
-    if (value) {
+    if (!value) return;
+
+    if (searchScope === "users") {
+      navigate(`/social?user=${encodeURIComponent(value)}`);
+    } else {
       navigate(`/movies?title=${encodeURIComponent(value)}`);
     }
   };
 
   const initial = username?.charAt(0).toUpperCase() || "?";
+  const searchPlaceholder =
+    searchScope === "users" ? "Buscar usuarios..." : "Buscar películas...";
 
   return (
     <nav className="sticky top-0 z-50 px-3 pt-3 sm:px-5 sm:pt-4">
@@ -277,20 +310,52 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                 })}
               </div>
 
-              {/* Buscador */}
+              {/* Buscador con selector Películas / Usuarios */}
               <form
                 onSubmit={handleSearch}
-                className="relative hidden md:block"
+                className="relative hidden md:flex items-center rounded-full border border-transparent bg-ink/5 pl-3 pr-1 py-1 transition-all focus-within:border-accent/30 focus-within:bg-surface-2 focus-within:ring-2 focus-within:ring-accent/15"
               >
-                <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
+                <SearchIcon className="h-4 w-4 shrink-0 text-faint" />
                 <input
                   type="search"
                   name="navbar-search"
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Buscar..."
-                  className="w-40 lg:w-52 xl:w-60 rounded-full border border-transparent bg-ink/5 py-2 pl-9 pr-3 text-sm text-ink placeholder:text-faint transition-all focus:border-accent/30 focus:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-accent/15"
+                  placeholder={searchPlaceholder}
+                  className="w-32 lg:w-44 xl:w-52 bg-transparent py-1 pl-2 pr-2 text-sm text-ink placeholder:text-faint focus:outline-none"
                 />
+                <div
+                  role="group"
+                  aria-label="Tipo de búsqueda"
+                  className="flex items-center rounded-full border border-line/10 bg-surface/80 p-0.5 text-[11px] font-medium"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setSearchScope("movies")}
+                    title="Buscar películas"
+                    className={`flex items-center gap-1 rounded-full px-2 py-1 transition-colors ${
+                      searchScope === "movies"
+                        ? "bg-accent text-white"
+                        : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    <FilmIcon className="h-3 w-3" />
+                    <span className="hidden xl:inline">Películas</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSearchScope("users")}
+                    title="Buscar usuarios"
+                    className={`flex items-center gap-1 rounded-full px-2 py-1 transition-colors ${
+                      searchScope === "users"
+                        ? "bg-accent text-white"
+                        : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    <UsersIcon className="h-3 w-3" />
+                    <span className="hidden xl:inline">Usuarios</span>
+                  </button>
+                </div>
               </form>
 
               {/* Botones de la derecha */}
@@ -443,16 +508,45 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
             {/* Panel móvil */}
             {mobileOpen && (
               <div className="md:hidden mt-2 border-t border-line/10 pt-3 pb-2">
-                <form onSubmit={handleSearch} className="relative mb-2">
-                  <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
-                  <input
-                    type="search"
-                    name="navbar-search-mobile"
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Buscar..."
-                    className="w-full rounded-full border border-transparent bg-ink/5 py-2.5 pl-10 pr-4 text-sm text-ink placeholder:text-faint focus:border-accent/30 focus:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-accent/15"
-                  />
+                <form onSubmit={handleSearch} className="mb-2 space-y-2">
+                  <div className="flex items-center gap-1 rounded-full border border-line/10 bg-ink/5 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setSearchScope("movies")}
+                      className={`flex-1 flex items-center justify-center gap-1.5 rounded-full py-1.5 text-xs font-medium transition-colors ${
+                        searchScope === "movies"
+                          ? "bg-accent text-white"
+                          : "text-muted hover:text-ink"
+                      }`}
+                    >
+                      <FilmIcon className="h-3.5 w-3.5" />
+                      Películas
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSearchScope("users")}
+                      className={`flex-1 flex items-center justify-center gap-1.5 rounded-full py-1.5 text-xs font-medium transition-colors ${
+                        searchScope === "users"
+                          ? "bg-accent text-white"
+                          : "text-muted hover:text-ink"
+                      }`}
+                    >
+                      <UsersIcon className="h-3.5 w-3.5" />
+                      Usuarios
+                    </button>
+                  </div>
+
+                  <div className="relative">
+                    <SearchIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint" />
+                    <input
+                      type="search"
+                      name="navbar-search-mobile"
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                      placeholder={searchPlaceholder}
+                      className="w-full rounded-full border border-transparent bg-ink/5 py-2.5 pl-10 pr-4 text-sm text-ink placeholder:text-faint focus:border-accent/30 focus:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-accent/15"
+                    />
+                  </div>
                 </form>
 
                 <div className="flex flex-col gap-1">

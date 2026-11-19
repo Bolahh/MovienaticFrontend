@@ -13,6 +13,7 @@ import { BackLink } from '../components/BackLink';
 import { useAuthFlow } from '../components/AuthFlow';
 import { Loading, ErrorState } from '../components/Spinner';
 import { MovieCard } from '../components/MovieCard';
+import Button from '../components/Button';
 
 export function MovieCollectionPage() {
   const { userId } = useParams();
@@ -27,6 +28,10 @@ export function MovieCollectionPage() {
   const [movies, setMovies] = useState<MovieSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+  const size = 20;
 
   const isPending = mode === 'pending';
   const title = isPending ? 'Películas pendientes' : 'Películas favoritas';
@@ -48,11 +53,15 @@ export function MovieCollectionPage() {
     try {
       const [userDetail, collection] = await Promise.all([
         getUserDetail(profileId),
-        isPending ? getPending(profileId) : getFavourites(profileId),
+        isPending
+          ? getPending(profileId, { page, size })
+          : getFavourites(profileId, { page, size }),
       ]);
 
       setDetail(userDetail);
-      setMovies(collection ?? []);
+      setMovies(collection.content ?? []);
+      setTotalPages(collection.totalPages || 1);
+      setTotalElements(collection.totalElements || 0);
     } catch (e) {
       const status = (e as { status?: number }).status;
       setError(
@@ -70,9 +79,13 @@ export function MovieCollectionPage() {
   };
 
   useEffect(() => {
+    setPage(0);
+  }, [profileId, mode]);
+
+  useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileId, mode]);
+  }, [profileId, mode, page]);
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -100,8 +113,8 @@ export function MovieCollectionPage() {
               </h1>
               <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
                 <span>
-                  {movies.length}{' '}
-                  {movies.length === 1 ? 'película' : 'películas'} de{' '}
+                  {totalElements}{' '}
+                  {totalElements === 1 ? 'película' : 'películas'} de{' '}
                   <Link
                     to={`/users/${detail.id}`}
                     className="font-medium text-accent hover:underline"
@@ -113,7 +126,7 @@ export function MovieCollectionPage() {
             </header>
 
             <section className="mt-10">
-              {movies.length === 0 ? (
+              {totalElements === 0 ? (
                 <p className="rounded-2xl border border-dashed border-line/10 bg-surface/60 px-5 py-10 text-sm text-faint">
                   {emptyMessage}
                 </p>
@@ -130,6 +143,32 @@ export function MovieCollectionPage() {
                       to={`/movies/${movie.id}`}
                     />
                   ))}
+                </div>
+              )}
+
+              {totalPages > 1 && (
+                <div className="mt-12 flex items-center justify-center gap-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPage((current) => Math.max(0, current - 1))}
+                    disabled={page === 0}
+                  >
+                    Anterior
+                  </Button>
+                  <span className="rounded-full border border-line/10 bg-surface px-4 py-1.5 text-xs font-medium text-muted">
+                    Página {page + 1} de {totalPages}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setPage((current) => Math.min(totalPages - 1, current + 1))
+                    }
+                    disabled={page >= totalPages - 1}
+                  >
+                    Siguiente
+                  </Button>
                 </div>
               )}
             </section>

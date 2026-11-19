@@ -33,7 +33,6 @@ export function useAuthFlow() {
   const handleLogin = async (data: {
     email: string;
     password: string;
-    rememberMe: boolean;
   }) => {
     setLoginError('');
     try {

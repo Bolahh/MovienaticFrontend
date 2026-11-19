@@ -1,24 +1,24 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from '../router';
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "../router";
 import {
   addPending,
   getGenres,
   getMovieDetail,
   getMovies,
-  getPending,
-  getPublicLists,
+  getListsOrderedByLikes,
   getUserIdByUsername,
+  isPending,
   type Genre,
   type MovieList,
   type MovieSummary,
-} from '../api';
-import { Navbar } from '../components/Navbar';
-import { HeroCarousel } from '../components/HeroCarousel';
-import { MovieCard } from '../components/MovieCard';
-import { PublicListCard } from '../components/PublicListCard';
-import { Footer } from '../components/Footer';
-import { useAuthFlow } from '../components/AuthFlow';
-import { Loading, ErrorState } from '../components/Spinner';
+} from "../api";
+import { Navbar } from "../components/Navbar";
+import { HeroCarousel } from "../components/HeroCarousel";
+import { MovieCard } from "../components/MovieCard";
+import { PublicListCard } from "../components/PublicListCard";
+import { Footer } from "../components/Footer";
+import { useAuthFlow } from "../components/AuthFlow";
+import { Loading, ErrorState } from "../components/Spinner";
 
 type HeroMovie = {
   id: number;
@@ -43,15 +43,15 @@ type HomeData = {
 };
 
 // Géneros que se muestran como filas temáticas en la portada.
-const PREFERRED_GENRES = ['Acción', 'Comedia', 'Terror'];
+const PREFERRED_GENRES = ["Acción", "Comedia", "Terror"];
 
 const MOVIE_GRID =
-  'grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 lg:grid-cols-6';
+  "grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 md:grid-cols-4 lg:grid-cols-6";
 
 function normalize(value: string): string {
   return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
 }
@@ -60,7 +60,9 @@ function pickGenres(genres: Genre[]): Genre[] {
   const chosen: Genre[] = [];
 
   for (const name of PREFERRED_GENRES) {
-    const match = genres.find((genre) => normalize(genre.name) === normalize(name));
+    const match = genres.find(
+      (genre) => normalize(genre.name) === normalize(name),
+    );
     if (match && !chosen.some((genre) => genre.id === match.id)) {
       chosen.push(match);
     }
@@ -91,41 +93,43 @@ async function getRatedOrAny(
 
 async function loadHomeData(): Promise<HomeData> {
   // Hero: estrenos recientes bien valorados.
-  const [heroPage, lists, genres] = await Promise.all([
+  const [heroPage, listsPage, genres] = await Promise.all([
     getRatedOrAny(
-      { size: 6, sort: ['releaseYear,desc', 'averageRating,desc'] },
+      { size: 6, sort: ["releaseYear,desc", "averageRating,desc"] },
       {},
       3.5,
     ),
-    getPublicLists(6),
+    getListsOrderedByLikes(0, 6),
     getGenres(),
   ]);
 
   // La vista resumen no trae descripción ni géneros: pedimos el detalle de las
   // películas del carrusel para poder mostrar la ficha completa en el hero.
   const details = await Promise.all(
-    heroPage.content.slice(0, 6).map((movie) =>
-      getMovieDetail(movie.id).catch(() => null),
-    ),
+    heroPage.content
+      .slice(0, 6)
+      .map((movie) => getMovieDetail(movie.id).catch(() => null)),
   );
 
-  const heroMovies: HeroMovie[] = heroPage.content.slice(0, 6).map((movie, index) => {
-    const detail = details[index];
-    return {
-      id: movie.id,
-      title: movie.title,
-      year: movie.releaseYear ?? new Date().getFullYear(),
-      rating: movie.averageRating ?? 0,
-      poster: movie.posterURL ?? undefined,
-      genre: detail?.genres?.[0]?.name,
-      description: detail?.description ?? undefined,
-    };
-  });
+  const heroMovies: HeroMovie[] = heroPage.content
+    .slice(0, 6)
+    .map((movie, index) => {
+      const detail = details[index];
+      return {
+        id: movie.id,
+        title: movie.title,
+        year: movie.releaseYear ?? new Date().getFullYear(),
+        rating: movie.averageRating ?? 0,
+        poster: movie.posterURL ?? undefined,
+        genre: detail?.genres?.[0]?.name,
+        description: detail?.description ?? undefined,
+      };
+    });
 
   const genreSections = await Promise.all(
     pickGenres(genres).map(async (genre) => {
       const page = await getRatedOrAny(
-        { size: 6, sort: ['averageRating,desc', 'releaseYear,desc'] },
+        { size: 6, sort: ["averageRating,desc", "releaseYear,desc"] },
         { genreIds: [genre.id] },
       );
       return { id: genre.id, name: genre.name, movies: page.content };
@@ -134,7 +138,7 @@ async function loadHomeData(): Promise<HomeData> {
 
   return {
     heroMovies,
-    lists,
+    lists: listsPage.content || [],
     genreSections: genreSections.filter((section) => section.movies.length > 0),
   };
 }
@@ -144,19 +148,19 @@ export function Home() {
 
   const [data, setData] = useState<HomeData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set());
   const [pendingBusyId, setPendingBusyId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError('');
+    setError("");
     try {
       setData(await loadHomeData());
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : 'No se pudo cargar la portada.',
+        e instanceof Error ? e.message : "No se pudo cargar la portada.",
       );
       setData(null);
     } finally {
@@ -169,18 +173,25 @@ export function Home() {
   }, [load]);
 
   // Películas que el usuario ya tiene en pendientes (para el botón del hero).
+  // Solo consultamos las 6 del carrusel, no toda la colección del usuario.
   useEffect(() => {
     let cancelled = false;
+    const heroIds = data?.heroMovies.map((movie) => movie.id) ?? [];
 
-    if (!auth.isAuthenticated || !auth.username) {
+    if (!auth.isAuthenticated || !auth.username || heroIds.length === 0) {
       setPendingIds(new Set());
       return;
     }
 
     getUserIdByUsername(auth.username)
-      .then((userId) => getPending(userId))
-      .then((movies) => {
-        if (!cancelled) setPendingIds(new Set(movies.map((movie) => movie.id)));
+      .then(async (userId) => {
+        const flags = await Promise.all(
+          heroIds.map((movieId) =>
+            isPending(userId, movieId).catch(() => false),
+          ),
+        );
+        if (cancelled) return;
+        setPendingIds(new Set(heroIds.filter((_, index) => flags[index])));
       })
       .catch(() => {
         if (!cancelled) setPendingIds(new Set());
@@ -189,7 +200,7 @@ export function Home() {
     return () => {
       cancelled = true;
     };
-  }, [auth.isAuthenticated, auth.username]);
+  }, [auth.isAuthenticated, auth.username, data]);
 
   const handleAddPending = async (movieId: number) => {
     if (!auth.isAuthenticated || !auth.username) {
@@ -235,7 +246,16 @@ export function Home() {
             >
               Explorar catálogo
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent-soft text-accent transition-transform group-hover:translate-x-0.5">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-3.5 w-3.5" aria-hidden="true">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-3.5 w-3.5"
+                  aria-hidden="true"
+                >
                   <path d="M5 12h14" />
                   <path d="m18 5 7 7-7 7" />
                 </svg>
@@ -291,7 +311,7 @@ export function Home() {
 
               {data.lists.length === 0 ? (
                 <p className="rounded-2xl border border-dashed border-line/10 bg-surface/60 px-5 py-8 text-sm text-faint">
-                  Todavía no hay listas públicas con likes.
+                  Todavía no hay listas con likes.
                 </p>
               ) : (
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">

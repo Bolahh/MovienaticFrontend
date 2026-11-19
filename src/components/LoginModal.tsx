@@ -1,24 +1,24 @@
 import { useState } from 'react';
+import { PasswordField } from './PasswordField';
 
 type LoginModalProps = {
   open: boolean;
   onClose: () => void;
   onSwitchToRegister?: () => void;
-  onSubmit?: (data: { email: string; password: string; rememberMe: boolean }) => void;
+  onSubmit?: (data: { email: string; password: string }) => void;
   error?: string;
 };
 
 export function LoginModal({ open, onClose, onSwitchToRegister, onSubmit, error }: LoginModalProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
       return;
     }
-    onSubmit?.({ email, password, rememberMe });
+    onSubmit?.({ email, password });
   };
 
   if (!open) return null;
@@ -74,26 +74,11 @@ export function LoginModal({ open, onClose, onSwitchToRegister, onSubmit, error 
               <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
                 Contraseña
               </label>
-              <input
-                type="password"
+              <PasswordField
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                autoComplete="new-password"
-                className="w-full rounded-xl border border-transparent bg-ink/5 px-3.5 py-2.5 text-sm text-ink placeholder:text-faint transition-colors focus:border-accent/30 focus:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-accent/15"
+                onChange={setPassword}
+                autoComplete="current-password"
               />
-            </div>
-
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={() => setRememberMe(!rememberMe)}
-                className="h-4 w-4 cursor-pointer rounded border-line/15 bg-ink/5 text-accent focus:ring-accent"
-              />
-              <label className="cursor-pointer text-sm text-muted">
-                Recuérdame
-              </label>
             </div>
 
             {error && (

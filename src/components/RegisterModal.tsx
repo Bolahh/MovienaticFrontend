@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PasswordField } from './PasswordField';
 
 type RegisterModalProps = {
   open: boolean;
@@ -99,13 +100,10 @@ export function RegisterModal({ open, onClose, onSwitchToLogin, onSubmit, error 
               <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
                 Contraseña
               </label>
-              <input
-                type="password"
+              <PasswordField
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                onChange={setPassword}
                 autoComplete="new-password"
-                className="w-full rounded-xl border border-transparent bg-ink/5 px-3.5 py-2.5 text-sm text-ink placeholder:text-faint transition-colors focus:border-accent/30 focus:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-accent/15"
               />
             </div>
 
@@ -113,13 +111,10 @@ export function RegisterModal({ open, onClose, onSwitchToLogin, onSubmit, error 
               <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.12em] text-faint">
                 Repetir contraseña
               </label>
-              <input
-                type="password"
+              <PasswordField
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="••••••••"
+                onChange={setConfirmPassword}
                 autoComplete="new-password"
-                className="w-full rounded-xl border border-transparent bg-ink/5 px-3.5 py-2.5 text-sm text-ink placeholder:text-faint transition-colors focus:border-accent/30 focus:bg-surface-2 focus:outline-none focus:ring-2 focus:ring-accent/15"
               />
             </div>
 
