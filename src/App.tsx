@@ -9,6 +9,7 @@ import { MovieCollectionPage } from "./pages/MovieCollection";
 import { UserReviewsPage } from "./pages/UserReviews";
 import { ConnectionsPage } from "./pages/Connections";
 import { CreateListPage } from "./pages/CreateList";
+import { EditListPage } from "./pages/EditList";
 import { InfoPage } from "./pages/Info";
 import { Router } from "./router";
 
@@ -27,6 +28,8 @@ export default function App() {
       { path: "/users/:userId/reviews", element: UserReviewsPage },
       { path: "/users/:userId/followers", element: ConnectionsPage },
       { path: "/users/:userId/following", element: ConnectionsPage },
+      { path: "/myLists", element: CreateListPage },
+      { path: "/myLists/:listId/edit", element: EditListPage },
       { path: "/createList", element: CreateListPage },
       { path: "/about", element: InfoPage },
       { path: "/contact", element: InfoPage },

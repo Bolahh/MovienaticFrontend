@@ -1,11 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Link, useParams } from '../router';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
+import { Link, useParams } from "../router";
 import {
   addFavourite,
+  addMovieToList,
   addPending,
   addReview,
   deleteReview,
   dislikeReview,
+  getLists,
   getMovieDetail,
   getMovieReviews,
   getReviewVotes,
@@ -18,15 +27,17 @@ import {
   updateReview,
   type MovieDetail,
   type Review,
-} from '../api';
-import { Navbar } from '../components/Navbar';
-import { Footer } from '../components/Footer';
-import { BackLink } from '../components/BackLink';
-import { useAuthFlow } from '../components/AuthFlow';
-import { Loading, ErrorState } from '../components/Spinner';
-import Button from '../components/Button';
+  type UserMovieList,
+} from "../api";
+import { Navbar } from "../components/Navbar";
+import { Footer } from "../components/Footer";
+import { BackLink } from "../components/BackLink";
+import { useAuthFlow } from "../components/AuthFlow";
+import { Loading, ErrorState } from "../components/Spinner";
+import { Select } from "../components/Select";
+import Button from "../components/Button";
 
-function StarIcon({ className = '' }: { className?: string }) {
+function StarIcon({ className = "" }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -41,12 +52,12 @@ function StarIcon({ className = '' }: { className?: string }) {
 
 function RatingStars({
   value,
-  size = 'md',
+  size = "md",
 }: {
   value: number;
-  size?: 'sm' | 'md';
+  size?: "sm" | "md";
 }) {
-  const dimension = size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4';
+  const dimension = size === "sm" ? "h-3.5 w-3.5" : "h-4 w-4";
 
   return (
     <span
@@ -58,9 +69,7 @@ function RatingStars({
 
         return (
           <span key={index} className={`relative inline-block ${dimension}`}>
-            <StarIcon
-              className={`absolute inset-0 ${dimension} text-ink/10`}
-            />
+            <StarIcon className={`absolute inset-0 ${dimension} text-ink/10`} />
             <span
               className="absolute inset-0 overflow-hidden"
               style={{ width: `${fill * 100}%` }}
@@ -136,24 +145,24 @@ function initials(name: string): string {
     .split(/\s+/)
     .slice(0, 2)
     .map((part) => part.charAt(0).toUpperCase())
-    .join('');
+    .join("");
 }
 
 function formatDate(value: string): string {
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('es-ES', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("es-ES", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
   });
 }
 
 function ThumbIcon({
   type,
-  className = '',
+  className = "",
 }: {
-  type: 'like' | 'dislike';
+  type: "like" | "dislike";
   className?: string;
 }) {
   return (
@@ -167,7 +176,7 @@ function ThumbIcon({
       className={className}
       aria-hidden="true"
     >
-      {type === 'like' ? (
+      {type === "like" ? (
         <>
           <path d="M7 10v11H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h3Z" />
           <path d="M7 10l4.2-7.2a1.8 1.8 0 0 1 3.2 1.1V9h4.4a2 2 0 0 1 2 2.3l-1.2 7A2 2 0 0 1 17.6 20H7" />
@@ -190,16 +199,16 @@ export function MovieDetailPage() {
   const [movie, setMovie] = useState<MovieDetail | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   // Formulario de reseña (crear o editar la propia)
   const [reviewRating, setReviewRating] = useState(0);
-  const [reviewContent, setReviewContent] = useState('');
+  const [reviewContent, setReviewContent] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [reviewDeleting, setReviewDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [reviewError, setReviewError] = useState('');
-  const [reviewSuccess, setReviewSuccess] = useState('');
+  const [reviewError, setReviewError] = useState("");
+  const [reviewSuccess, setReviewSuccess] = useState("");
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [votes, setVotes] = useState<Record<number, boolean>>({});
   const [votingReviewId, setVotingReviewId] = useState<number | null>(null);
@@ -210,17 +219,25 @@ export function MovieDetailPage() {
   const [isPending, setIsPending] = useState(false);
   const [favouriteBusy, setFavouriteBusy] = useState(false);
   const [pendingBusy, setPendingBusy] = useState(false);
-  const [collectionError, setCollectionError] = useState('');
+  const [collectionError, setCollectionError] = useState("");
+
+  // Añadir esta película a una de las listas del usuario.
+  const [userLists, setUserLists] = useState<UserMovieList[]>([]);
+  const [selectedListId, setSelectedListId] = useState("");
+  const [confirmListAdd, setConfirmListAdd] = useState(false);
+  const [listAddBusy, setListAddBusy] = useState(false);
+  const [listAddError, setListAddError] = useState("");
+  const [listAddSuccess, setListAddSuccess] = useState("");
 
   const load = useCallback(async () => {
     if (!Number.isFinite(id) || id <= 0) {
-      setError('Película no encontrada.');
+      setError("Película no encontrada.");
       setLoading(false);
       return;
     }
 
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
       const [detail, movieReviews] = await Promise.all([
@@ -231,7 +248,7 @@ export function MovieDetailPage() {
       setReviews(movieReviews);
     } catch (e) {
       const message =
-        e instanceof Error ? e.message : 'No se pudo cargar la película.';
+        e instanceof Error ? e.message : "No se pudo cargar la película.";
       setMovie(null);
       setError(message);
     } finally {
@@ -300,7 +317,10 @@ export function MovieDetailPage() {
       return;
     }
 
-    Promise.all([checkFavourite(currentUserId, id), checkPending(currentUserId, id)])
+    Promise.all([
+      checkFavourite(currentUserId, id),
+      checkPending(currentUserId, id),
+    ])
       .then(([favourite, pending]) => {
         if (cancelled) return;
         setIsFavourite(favourite);
@@ -317,11 +337,44 @@ export function MovieDetailPage() {
     };
   }, [currentUserId, id]);
 
+  const listOptions = useMemo(
+    () => [
+      { value: "", label: "Elige una lista…" },
+      ...userLists.map((list) => ({
+        value: String(list.id),
+        label: list.name,
+      })),
+    ],
+    [userLists],
+  );
+  // Listas propias del usuario para el desplegable "Añadir a lista".
+  useEffect(() => {
+    let cancelled = false;
+
+    if (currentUserId == null) {
+      setUserLists([]);
+      setSelectedListId("");
+      return;
+    }
+
+    getLists(currentUserId)
+      .then((lists) => {
+        if (!cancelled) setUserLists(lists);
+      })
+      .catch(() => {
+        if (!cancelled) setUserLists([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId]);
+
   // La reseña del usuario actual, si existe.
   const myReview = useMemo(
     () =>
       currentUserId != null
-        ? reviews.find((review) => review.userId === currentUserId) ?? null
+        ? (reviews.find((review) => review.userId === currentUserId) ?? null)
         : null,
     [reviews, currentUserId],
   );
@@ -340,7 +393,7 @@ export function MovieDetailPage() {
       setReviewContent(myReview.content);
     } else {
       setReviewRating(0);
-      setReviewContent('');
+      setReviewContent("");
     }
   }, [myReview]);
 
@@ -354,31 +407,32 @@ export function MovieDetailPage() {
 
     const content = reviewContent.trim();
     if (reviewRating < 0.5) {
-      setReviewError('Selecciona una valoración de al menos media estrella.');
+      setReviewError("Selecciona una valoración de al menos media estrella.");
       return;
     }
     if (!content) {
-      setReviewError('Escribe el texto de tu reseña.');
+      setReviewError("Escribe el texto de tu reseña.");
       return;
     }
 
     setReviewSubmitting(true);
-    setReviewError('');
-    setReviewSuccess('');
+    setReviewError("");
+    setReviewSuccess("");
     setConfirmDelete(false);
 
     try {
-      const userId = currentUserId ?? (await getUserIdByUsername(auth.username));
+      const userId =
+        currentUserId ?? (await getUserIdByUsername(auth.username));
 
       if (myReview?.id != null) {
         await updateReview(userId, myReview.id, {
           content,
           rating: reviewRating,
         });
-        setReviewSuccess('Reseña actualizada correctamente.');
+        setReviewSuccess("Reseña actualizada correctamente.");
       } else {
         await addReview(userId, { movieId: id, content, rating: reviewRating });
-        setReviewSuccess('Reseña publicada correctamente.');
+        setReviewSuccess("Reseña publicada correctamente.");
 
         // Actualización optimista: la media y el número de valoraciones cambian
         // al instante, sin esperar al refresco de la ficha.
@@ -415,14 +469,14 @@ export function MovieDetailPage() {
       const status = (e as { status?: number }).status;
       setReviewError(
         status === 409
-          ? 'Ya has escrito una reseña para esta película.'
+          ? "Ya has escrito una reseña para esta película."
           : status === 403
-            ? 'No puedes modificar una reseña que no es tuya.'
+            ? "No puedes modificar una reseña que no es tuya."
             : status === 404
-              ? 'La reseña ya no existe. Recarga la página.'
+              ? "La reseña ya no existe. Recarga la página."
               : e instanceof Error
                 ? e.message
-                : 'No se pudo guardar la reseña.',
+                : "No se pudo guardar la reseña.",
       );
     } finally {
       setReviewSubmitting(false);
@@ -441,15 +495,15 @@ export function MovieDetailPage() {
     const reviewId = myReview.id;
 
     setReviewDeleting(true);
-    setReviewError('');
-    setReviewSuccess('');
+    setReviewError("");
+    setReviewSuccess("");
     setConfirmDelete(false);
 
     try {
       await deleteReview(currentUserId, reviewId);
 
       setReviews((prev) => prev.filter((review) => review.id !== reviewId));
-      setReviewSuccess('Reseña eliminada correctamente.');
+      setReviewSuccess("Reseña eliminada correctamente.");
 
       const [detail, movieReviews] = await Promise.all([
         getMovieDetail(id),
@@ -459,21 +513,21 @@ export function MovieDetailPage() {
       setReviews(movieReviews);
     } catch (e) {
       setReviewError(
-        e instanceof Error ? e.message : 'No se pudo borrar la reseña.',
+        e instanceof Error ? e.message : "No se pudo borrar la reseña.",
       );
     } finally {
       setReviewDeleting(false);
     }
   };
 
-  const handleVote = async (reviewId: number, type: 'like' | 'dislike') => {
+  const handleVote = async (reviewId: number, type: "like" | "dislike") => {
     if (!auth.isAuthenticated || !auth.username) {
       auth.openLogin();
       return;
     }
     if (votingReviewId != null) return;
 
-    const isLike = type === 'like';
+    const isLike = type === "like";
     const previousVote = votes[reviewId];
     const previousReviews = reviews;
 
@@ -507,11 +561,12 @@ export function MovieDetailPage() {
     );
 
     setVotingReviewId(reviewId);
-    setReviewError('');
-    setReviewSuccess('');
+    setReviewError("");
+    setReviewSuccess("");
 
     try {
-      const userId = currentUserId ?? (await getUserIdByUsername(auth.username));
+      const userId =
+        currentUserId ?? (await getUserIdByUsername(auth.username));
 
       if (isLike) await likeReview(userId, reviewId);
       else await dislikeReview(userId, reviewId);
@@ -523,7 +578,9 @@ export function MovieDetailPage() {
       ]);
       setReviews(movieReviews);
       setVotes(
-        Object.fromEntries(voteList.map((vote) => [vote.reviewId, vote.isLike])),
+        Object.fromEntries(
+          voteList.map((vote) => [vote.reviewId, vote.isLike]),
+        ),
       );
     } catch (e) {
       // Deshacemos la actualización optimista.
@@ -535,7 +592,7 @@ export function MovieDetailPage() {
         return next;
       });
       setReviewError(
-        e instanceof Error ? e.message : 'No se pudo registrar tu voto.',
+        e instanceof Error ? e.message : "No se pudo registrar tu voto.",
       );
     } finally {
       setVotingReviewId(null);
@@ -550,7 +607,7 @@ export function MovieDetailPage() {
     if (favouriteBusy) return;
 
     setFavouriteBusy(true);
-    setCollectionError('');
+    setCollectionError("");
 
     try {
       const userId =
@@ -562,9 +619,7 @@ export function MovieDetailPage() {
       setIsFavourite(!isFavourite);
     } catch (e) {
       setCollectionError(
-        e instanceof Error
-          ? e.message
-          : 'No se pudo actualizar tus favoritas.',
+        e instanceof Error ? e.message : "No se pudo actualizar tus favoritas.",
       );
     } finally {
       setFavouriteBusy(false);
@@ -579,7 +634,7 @@ export function MovieDetailPage() {
     if (pendingBusy) return;
 
     setPendingBusy(true);
-    setCollectionError('');
+    setCollectionError("");
 
     try {
       const userId =
@@ -593,16 +648,53 @@ export function MovieDetailPage() {
       setCollectionError(
         e instanceof Error
           ? e.message
-          : 'No se pudo actualizar tus pendientes.',
+          : "No se pudo actualizar tus pendientes.",
       );
     } finally {
       setPendingBusy(false);
     }
   };
 
+  const selectedList =
+    userLists.find((list) => String(list.id) === selectedListId) ?? null;
+
+  const handleAskAddToList = () => {
+    if (!auth.isAuthenticated || !auth.username) {
+      auth.openLogin();
+      return;
+    }
+    if (!selectedList) {
+      setListAddError("Elige una lista.");
+      return;
+    }
+    setListAddError("");
+    setListAddSuccess("");
+    setConfirmListAdd(true);
+  };
+
+  const handleConfirmAddToList = async () => {
+    if (!selectedList || currentUserId == null) return;
+
+    setListAddBusy(true);
+    setListAddError("");
+    setListAddSuccess("");
+
+    try {
+      await addMovieToList(currentUserId, selectedList.id, id);
+      setListAddSuccess(`Película añadida a «${selectedList.name}».`);
+      setConfirmListAdd(false);
+    } catch (e) {
+      setListAddError(
+        e instanceof Error ? e.message : "No se pudo añadir a la lista.",
+      );
+    } finally {
+      setListAddBusy(false);
+    }
+  };
+
   const poster =
     movie?.posterURL ||
-    'https://picsum.photos/seed/movienatic-fallback/400/600';
+    "https://picsum.photos/seed/movienatic-fallback/400/600";
   const genres = (movie?.genres ?? []).filter((genre) => genre?.name);
   const casting = movie?.casting ?? [];
   const averageRating = movie?.averageRating;
@@ -625,7 +717,10 @@ export function MovieDetailPage() {
             {/* Ficha principal */}
             <section className="relative isolate overflow-hidden rounded-[2rem] border border-line/10 bg-surface shadow-[0_40px_90px_-60px_rgba(16,12,30,0.55)]">
               {/* Póster desenfocado como atmósfera */}
-              <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 -z-10"
+              >
                 <img
                   src={poster}
                   alt=""
@@ -644,7 +739,7 @@ export function MovieDetailPage() {
                       src={poster}
                       alt={`Póster de ${movie.title}`}
                       onError={(event) => {
-                        event.currentTarget.style.visibility = 'hidden';
+                        event.currentTarget.style.visibility = "hidden";
                       }}
                       className="h-full w-full object-cover"
                     />
@@ -684,10 +779,10 @@ export function MovieDetailPage() {
                         {movie.numberOfRatings != null &&
                           movie.numberOfRatings > 0 && (
                             <span className="font-normal text-white/60">
-                              ({movie.numberOfRatings}{' '}
+                              ({movie.numberOfRatings}{" "}
                               {movie.numberOfRatings === 1
-                                ? 'valoración'
-                                : 'valoraciones'}
+                                ? "valoración"
+                                : "valoraciones"}
                               )
                             </span>
                           )}
@@ -713,7 +808,7 @@ export function MovieDetailPage() {
                   <div className="mt-5 flex flex-wrap items-center gap-2">
                     <Button
                       type="button"
-                      variant={isFavourite ? 'primary' : 'secondary'}
+                      variant={isFavourite ? "primary" : "secondary"}
                       size="sm"
                       onClick={toggleFavourite}
                       disabled={favouriteBusy}
@@ -721,19 +816,19 @@ export function MovieDetailPage() {
                     >
                       <StarIcon
                         className={`h-4 w-4 ${
-                          isFavourite ? 'text-[#c4b5fd]' : 'text-accent'
+                          isFavourite ? "text-[#c4b5fd]" : "text-accent"
                         }`}
                       />
                       {favouriteBusy
-                        ? 'Guardando…'
+                        ? "Guardando…"
                         : isFavourite
-                          ? 'En favoritas'
-                          : 'Añadir a favoritas'}
+                          ? "En favoritas"
+                          : "Añadir a favoritas"}
                     </Button>
 
                     <Button
                       type="button"
-                      variant={isPending ? 'primary' : 'secondary'}
+                      variant={isPending ? "primary" : "secondary"}
                       size="sm"
                       onClick={togglePending}
                       disabled={pendingBusy}
@@ -752,15 +847,103 @@ export function MovieDetailPage() {
                         <path d="M12 5v14M5 12h14" />
                       </svg>
                       {pendingBusy
-                        ? 'Guardando…'
+                        ? "Guardando…"
                         : isPending
-                          ? 'En pendientes'
-                          : 'Añadir a pendientes'}
+                          ? "En pendientes"
+                          : "Añadir a pendientes"}
                     </Button>
                   </div>
 
+                  {/* Añadir la película a una lista propia */}
+                  <div className="mt-4">
+                    {!auth.isAuthenticated ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={auth.openLogin}
+                      >
+                        Añadir a una lista
+                      </Button>
+                    ) : userLists.length === 0 ? (
+                      <p className="text-xs text-faint">
+                        Todavía no tienes listas.{" "}
+                        <Link
+                          to="/myLists"
+                          className="font-semibold text-accent hover:underline"
+                        >
+                          Crea una lista
+                        </Link>{" "}
+                        para guardar esta película.
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="w-60 max-w-full">
+                          <Select
+                            ariaLabel="Elegir lista"
+                            value={selectedListId}
+                            onChange={(value) => {
+                              setSelectedListId(value);
+                              setConfirmListAdd(false);
+                              setListAddError("");
+                              setListAddSuccess("");
+                            }}
+                            options={listOptions}
+                          />
+                        </div>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={handleAskAddToList}
+                          disabled={!selectedListId || listAddBusy}
+                        >
+                          Añadir a lista
+                        </Button>
+                      </div>
+                    )}
+
+                    {confirmListAdd && selectedList && (
+                      <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-accent/20 bg-accent-soft px-3.5 py-2.5 text-sm text-accent">
+                        <span>
+                          ¿Añadir «{movie?.title}» a «{selectedList.name}»?
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleConfirmAddToList}
+                            disabled={listAddBusy}
+                          >
+                            {listAddBusy ? "Añadiendo…" : "Confirmar"}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setConfirmListAdd(false)}
+                            disabled={listAddBusy}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {listAddError && (
+                      <p className="mt-2 text-xs text-danger">{listAddError}</p>
+                    )}
+                    {listAddSuccess && (
+                      <p className="mt-2 text-xs text-accent">
+                        {listAddSuccess}
+                      </p>
+                    )}
+                  </div>
+
                   {collectionError && (
-                    <p className="mt-2 text-xs text-danger">{collectionError}</p>
+                    <p className="mt-2 text-xs text-danger">
+                      {collectionError}
+                    </p>
                   )}
 
                   <div className="mt-7 border-t border-line/10 pt-6">
@@ -769,7 +952,7 @@ export function MovieDetailPage() {
                     </h2>
                     <p className="max-w-3xl text-[15px] leading-relaxed text-muted text-pretty">
                       {movie.description?.trim() ||
-                        'Todavía no hay una sinopsis disponible para esta película.'}
+                        "Todavía no hay una sinopsis disponible para esta película."}
                     </p>
                   </div>
                 </div>
@@ -785,7 +968,8 @@ export function MovieDetailPage() {
                 </div>
                 {casting.length > 0 && (
                   <span className="text-xs font-medium uppercase tracking-[0.14em] text-faint">
-                    {casting.length} {casting.length === 1 ? 'persona' : 'personas'}
+                    {casting.length}{" "}
+                    {casting.length === 1 ? "persona" : "personas"}
                   </span>
                 )}
               </div>
@@ -829,7 +1013,8 @@ export function MovieDetailPage() {
                 </div>
                 {reviews.length > 0 && (
                   <span className="text-xs font-medium uppercase tracking-[0.14em] text-faint">
-                    {reviews.length} {reviews.length === 1 ? 'reseña' : 'reseñas'}
+                    {reviews.length}{" "}
+                    {reviews.length === 1 ? "reseña" : "reseñas"}
                   </span>
                 )}
               </div>
@@ -839,18 +1024,20 @@ export function MovieDetailPage() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <h3 className="font-heading text-lg font-semibold text-ink">
-                        {myReview ? 'Tu reseña' : 'Escribe tu reseña'}
+                        {myReview ? "Tu reseña" : "Escribe tu reseña"}
                       </h3>
                       <p className="mt-1 text-sm text-muted">
                         {myReview
-                          ? 'Puedes actualizar tu valoración y tu texto, o borrar la reseña.'
-                          : 'Puntúa la película y comparte tu opinión con la comunidad.'}
+                          ? "Puedes actualizar tu valoración y tu texto, o borrar la reseña."
+                          : "Puntúa la película y comparte tu opinión con la comunidad."}
                       </p>
                     </div>
                     <span className="inline-flex items-center gap-2 rounded-full border border-line/10 bg-ink/5 px-3 py-1 text-xs text-muted">
                       <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-                      {myReview ? 'Editando como' : 'Publicando como'}{' '}
-                      <strong className="font-semibold text-ink">{auth.username}</strong>
+                      {myReview ? "Editando como" : "Publicando como"}{" "}
+                      <strong className="font-semibold text-ink">
+                        {auth.username}
+                      </strong>
                     </span>
                   </div>
 
@@ -862,8 +1049,8 @@ export function MovieDetailPage() {
                       value={reviewRating}
                       onChange={(value) => {
                         setReviewRating(value);
-                        setReviewError('');
-                        setReviewSuccess('');
+                        setReviewError("");
+                        setReviewSuccess("");
                       }}
                     />
 
@@ -878,8 +1065,8 @@ export function MovieDetailPage() {
                       value={reviewContent}
                       onChange={(event) => {
                         setReviewContent(event.target.value);
-                        setReviewError('');
-                        setReviewSuccess('');
+                        setReviewError("");
+                        setReviewSuccess("");
                       }}
                       rows={4}
                       maxLength={1000}
@@ -915,11 +1102,11 @@ export function MovieDetailPage() {
                         >
                           {reviewSubmitting
                             ? myReview
-                              ? 'Actualizando…'
-                              : 'Publicando…'
+                              ? "Actualizando…"
+                              : "Publicando…"
                             : myReview
-                              ? 'Actualizar reseña'
-                              : 'Publicar reseña'}
+                              ? "Actualizar reseña"
+                              : "Publicar reseña"}
                         </Button>
                       </div>
                     </div>
@@ -927,8 +1114,8 @@ export function MovieDetailPage() {
                     {confirmDelete && myReview && (
                       <div className="mt-4 rounded-xl border border-danger/20 bg-danger-soft p-4">
                         <p className="text-sm font-medium text-danger">
-                          ¿Seguro que quieres borrar tu reseña? Esta acción no se
-                          puede deshacer.
+                          ¿Seguro que quieres borrar tu reseña? Esta acción no
+                          se puede deshacer.
                         </p>
                         <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                           <Button
@@ -938,7 +1125,7 @@ export function MovieDetailPage() {
                             disabled={reviewDeleting}
                             className="w-full sm:w-auto"
                           >
-                            {reviewDeleting ? 'Borrando…' : 'Sí, borrar reseña'}
+                            {reviewDeleting ? "Borrando…" : "Sí, borrar reseña"}
                           </Button>
                           <Button
                             type="button"
@@ -997,15 +1184,16 @@ export function MovieDetailPage() {
                     const isMine =
                       currentUserId != null && review.userId === currentUserId;
                     const authorName = isMine
-                      ? 'Tú'
-                      : review.username || review.user?.username || 'Usuario';
+                      ? "Tú"
+                      : review.username || review.user?.username || "Usuario";
                     const authorLink = isMine
-                      ? '/profile'
+                      ? "/profile"
                       : review.userId != null
                         ? `/users/${review.userId}`
                         : null;
                     const reviewId = review.id;
-                    const isLiked = reviewId != null && votes[reviewId] === true;
+                    const isLiked =
+                      reviewId != null && votes[reviewId] === true;
                     const isDisliked =
                       reviewId != null && votes[reviewId] === false;
                     const votePending =
@@ -1016,8 +1204,8 @@ export function MovieDetailPage() {
                         key={review.id ?? `${review.timestamp}-${index}`}
                         className={`rounded-2xl border p-5 shadow-[0_1px_2px_rgba(16,12,30,0.03)] transition-all hover:border-line/15 hover:shadow-[0_22px_44px_-30px_rgba(16,12,30,0.4)] sm:p-6 ${
                           isMine
-                            ? 'border-accent/30 bg-accent/[0.04]'
-                            : 'border-line/10 bg-surface'
+                            ? "border-accent/30 bg-accent/[0.04]"
+                            : "border-line/10 bg-surface"
                         }`}
                       >
                         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1064,20 +1252,21 @@ export function MovieDetailPage() {
                           <button
                             type="button"
                             onClick={() => {
-                              if (reviewId != null) handleVote(reviewId, 'like');
+                              if (reviewId != null)
+                                handleVote(reviewId, "like");
                             }}
                             disabled={reviewId == null || votePending}
                             aria-pressed={isLiked}
                             aria-label="Marcar reseña como útil"
                             title={
                               auth.isAuthenticated
-                                ? 'Me resulta útil'
-                                : 'Inicia sesión para votar'
+                                ? "Me resulta útil"
+                                : "Inicia sesión para votar"
                             }
                             className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                               isLiked
-                                ? 'border-accent/30 bg-accent-soft text-accent'
-                                : 'border-line/10 text-faint hover:border-line/20 hover:text-ink'
+                                ? "border-accent/30 bg-accent-soft text-accent"
+                                : "border-line/10 text-faint hover:border-line/20 hover:text-ink"
                             }`}
                           >
                             <ThumbIcon type="like" className="h-4 w-4" />
@@ -1086,20 +1275,21 @@ export function MovieDetailPage() {
                           <button
                             type="button"
                             onClick={() => {
-                              if (reviewId != null) handleVote(reviewId, 'dislike');
+                              if (reviewId != null)
+                                handleVote(reviewId, "dislike");
                             }}
                             disabled={reviewId == null || votePending}
                             aria-pressed={isDisliked}
                             aria-label="Marcar reseña como no útil"
                             title={
                               auth.isAuthenticated
-                                ? 'No me resulta útil'
-                                : 'Inicia sesión para votar'
+                                ? "No me resulta útil"
+                                : "Inicia sesión para votar"
                             }
                             className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                               isDisliked
-                                ? 'border-danger/30 bg-danger-soft text-danger'
-                                : 'border-line/10 text-faint hover:border-line/20 hover:text-ink'
+                                ? "border-danger/30 bg-danger-soft text-danger"
+                                : "border-line/10 text-faint hover:border-line/20 hover:text-ink"
                             }`}
                           >
                             <ThumbIcon type="dislike" className="h-4 w-4" />

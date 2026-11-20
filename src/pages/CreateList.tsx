@@ -8,7 +8,6 @@ import {
 import { Link } from "../router";
 import {
   addList,
-  addMovieToList,
   getLists,
   getMovies,
   getUserIdByUsername,
@@ -170,27 +169,18 @@ export function CreateListPage() {
     try {
       const userId =
         currentUserId ?? (await getUserIdByUsername(auth.username));
-      const previousIds = new Set(lists.map((l) => l.id));
 
-      // 1. Creamos la lista en el backend
-      await addList(userId, name, description);
+      // Una sola petición atómica: crea la lista con todas las películas
+      // seleccionadas en el borrador.
+      await addList(
+        userId,
+        name,
+        description,
+        selectedMovies.map((movie) => movie.id),
+      );
 
-      // 2. Obtenemos las listas actualizadas para localizar el ID de la recién creada
-      let updatedLists = await getLists(userId);
-      const newlyCreated =
-        updatedLists.find((l) => !previousIds.has(l.id)) ??
-        [...updatedLists].reverse().find((l) => l.name === name);
-
-      // 3. Si el usuario seleccionó películas en la columna central, las añadimos a la lista
-      if (newlyCreated && selectedMovies.length > 0) {
-        await Promise.all(
-          selectedMovies.map((movie) =>
-            addMovieToList(userId, newlyCreated.id, movie.id),
-          ),
-        );
-        // Volvemos a pedir las listas para que PublicListCard tenga movieCount y previewPosters actualizados
-        updatedLists = await getLists(userId);
-      }
+      // Refrescamos la biblioteca para mostrar la lista creada con sus pósters.
+      const updatedLists = await getLists(userId);
 
       setLists(updatedLists);
       setListName("");
@@ -223,11 +213,11 @@ export function CreateListPage() {
           />
           <span className="eyebrow mb-3">Colecciones personales</span>
           <h1 className="font-heading text-3xl font-extrabold leading-[1.06] tracking-[-0.03em] text-ink sm:text-4xl lg:text-5xl">
-            Crear lista de películas
+            Mis listas de películas
           </h1>
           <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted">
-            Dale un nombre a tu colección, busca películas en la columna derecha
-            para incluirlas en la lista y guárdala.
+            Crea una lista nueva o edita las que ya tienes: cambia su nombre,
+            su descripción y las películas que la forman.
           </p>
         </section>
 
@@ -555,7 +545,13 @@ export function CreateListPage() {
                       username: list.username ?? auth.username,
                     };
 
-                    return <PublicListCard key={list.id} list={enrichedList} />;
+                    return (
+                      <PublicListCard
+                        key={list.id}
+                        list={enrichedList}
+                        editHref={`/myLists/${list.id}/edit`}
+                      />
+                    );
                   })}
                 </div>
               )}

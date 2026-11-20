@@ -6,6 +6,8 @@ type PublicListCardProps = {
   liked?: boolean;
   likeBusy?: boolean;
   onToggleLike?: () => void;
+  /** Si se indica, muestra un enlace "Editar" en el pie de la tarjeta. */
+  editHref?: string;
 };
 
 /**
@@ -17,6 +19,7 @@ export function PublicListCard({
   liked = false,
   likeBusy = false,
   onToggleLike,
+  editHref,
 }: PublicListCardProps) {
   const posters = (list.previewPosters ?? []).slice(0, 4);
   const placeholders = Math.max(0, 4 - posters.length);
@@ -135,25 +138,35 @@ export function PublicListCard({
           <span className="text-faint">
             {movieCount} {movieCount === 1 ? 'película' : 'películas'}
           </span>
-          <Link
-            to={listUrl}
-            className="inline-flex items-center gap-1 font-semibold text-accent transition-colors hover:text-accent-strong"
-          >
-            Ver lista
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
-              aria-hidden="true"
+          <div className="flex items-center gap-3">
+            {editHref && (
+              <Link
+                to={editHref}
+                className="inline-flex items-center gap-1 font-semibold text-muted transition-colors hover:text-accent"
+              >
+                Editar
+              </Link>
+            )}
+            <Link
+              to={listUrl}
+              className="inline-flex items-center gap-1 font-semibold text-accent transition-colors hover:text-accent-strong"
             >
-              <path d="M5 12h14" />
-              <path d="m18 5 7 7-7 7" />
-            </svg>
-          </Link>
+              Ver lista
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5"
+                aria-hidden="true"
+              >
+                <path d="M5 12h14" />
+                <path d="m18 5 7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
         </div>
       </div>
     </article>

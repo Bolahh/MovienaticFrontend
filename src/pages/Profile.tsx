@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from '../router';
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Link, useParams } from "../router";
 import {
   followUser,
   getFavourites,
@@ -11,18 +11,21 @@ import {
   getUserIdByUsername,
   unfollowUser,
   type MovieSummary,
+  type MovieList,
   type Review,
   type UserDetail,
   type UserMovieList,
-} from '../api';
-import { Navbar } from '../components/Navbar';
-import { Footer } from '../components/Footer';
-import { BackLink } from '../components/BackLink';
-import { useAuthFlow } from '../components/AuthFlow';
-import { Loading, ErrorState } from '../components/Spinner';
-import { MovieCard } from '../components/MovieCard';
-import { ProfileReviewCard } from '../components/ProfileReviewCard';
-import Button from '../components/Button';
+} from "../api";
+import { Navbar } from "../components/Navbar";
+import { Footer } from "../components/Footer";
+import { BackLink } from "../components/BackLink";
+import { useAuthFlow } from "../components/AuthFlow";
+import { Loading, ErrorState } from "../components/Spinner";
+import { MovieCard } from "../components/MovieCard";
+import { PublicListCard } from "../components/PublicListCard";
+import { ProfileReviewCard } from "../components/ProfileReviewCard";
+
+import Button from "../components/Button";
 
 function initials(name: string): string {
   return name
@@ -30,7 +33,7 @@ function initials(name: string): string {
     .split(/\s+/)
     .slice(0, 2)
     .map((part) => part.charAt(0).toUpperCase())
-    .join('');
+    .join("");
 }
 
 function EmptyState({ children }: { children: string }) {
@@ -45,22 +48,28 @@ function SectionHeader({
   eyebrow,
   title,
   count,
+  action,
 }: {
   eyebrow: string;
   title: string;
   count?: number;
+  action?: ReactNode;
 }) {
   return (
-    <div className="mb-5 flex items-end justify-between gap-4">
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
       <div>
         <span className="eyebrow mb-2.5">{eyebrow}</span>
-        <h2 className="section-title">{title}</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="section-title">{title}</h2>
+          {count != null && count > 0 && (
+            <span className="text-xs font-medium uppercase tracking-[0.14em] text-faint">
+              ({count})
+            </span>
+          )}
+        </div>
       </div>
-      {count != null && count > 0 && (
-        <span className="text-xs font-medium uppercase tracking-[0.14em] text-faint">
-          {count}
-        </span>
-      )}
+
+      {action && <div>{action}</div>}
     </div>
   );
 }
@@ -134,7 +143,7 @@ function ListPreviewCard({
               loading="lazy"
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
               onError={(event) => {
-                event.currentTarget.style.visibility = 'hidden';
+                event.currentTarget.style.visibility = "hidden";
               }}
             />
           </div>
@@ -159,7 +168,7 @@ function ListPreviewCard({
         )}
         <div className="mt-auto flex items-center justify-between gap-2 pt-3">
           <span className="text-xs font-medium uppercase tracking-[0.12em] text-faint">
-            {list.movieCount} {list.movieCount === 1 ? 'película' : 'películas'}
+            {list.movieCount} {list.movieCount === 1 ? "película" : "películas"}
           </span>
           <span className="text-xs font-semibold text-accent">
             Ver lista completa →
@@ -183,7 +192,7 @@ export function ProfilePage() {
   const [lists, setLists] = useState<UserMovieList[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [isFollowing, setIsFollowing] = useState(false);
   const [followBusy, setFollowBusy] = useState(false);
 
@@ -207,7 +216,7 @@ export function ProfilePage() {
       })
       .catch(() => {
         if (cancelled) return;
-        setError('No se pudo cargar tu perfil.');
+        setError("No se pudo cargar tu perfil.");
         setLoading(false);
       });
 
@@ -241,16 +250,17 @@ export function ProfilePage() {
     if (profileId == null) return;
 
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
-      const [userDetail, favs, pend, userLists, userReviews] = await Promise.all([
-        getUserDetail(profileId),
-        getFavourites(profileId, { page: 0, size: 6 }),
-        getPending(profileId, { page: 0, size: 6 }),
-        getLists(profileId),
-        getUserReviews(profileId),
-      ]);
+      const [userDetail, favs, pend, userLists, userReviews] =
+        await Promise.all([
+          getUserDetail(profileId),
+          getFavourites(profileId, { page: 0, size: 6 }),
+          getPending(profileId, { page: 0, size: 6 }),
+          getLists(profileId),
+          getUserReviews(profileId),
+        ]);
 
       setDetail(userDetail);
       setFavourites(favs.content ?? []);
@@ -261,10 +271,10 @@ export function ProfilePage() {
       const status = (e as { status?: number }).status;
       setError(
         status === 401
-          ? 'No se pudo cargar el perfil.'
+          ? "No se pudo cargar el perfil."
           : e instanceof Error
             ? e.message
-            : 'No se pudo cargar el perfil.',
+            : "No se pudo cargar el perfil.",
       );
       setDetail(null);
     } finally {
@@ -321,7 +331,9 @@ export function ProfilePage() {
       setDetail(userDetail);
     } catch (e) {
       setError(
-        e instanceof Error ? e.message : 'No se pudo actualizar el seguimiento.',
+        e instanceof Error
+          ? e.message
+          : "No se pudo actualizar el seguimiento.",
       );
     } finally {
       setFollowBusy(false);
@@ -330,10 +342,10 @@ export function ProfilePage() {
 
   const stats = detail
     ? [
-        { label: 'Reseñas', value: detail.reviewCount },
-        { label: 'Favoritas', value: detail.favouriteCount },
-        { label: 'Pendientes', value: detail.pendingCount },
-        { label: 'Listas', value: detail.listCount },
+        { label: "Reseñas", value: detail.reviewCount },
+        { label: "Favoritas", value: detail.favouriteCount },
+        { label: "Pendientes", value: detail.pendingCount },
+        { label: "Listas", value: detail.listCount },
       ]
     : [];
 
@@ -381,15 +393,15 @@ export function ProfilePage() {
                   </span>
                   <div>
                     <span className="eyebrow mb-2">
-                      {isOwnProfile ? 'Tu perfil' : 'Perfil público'}
+                      {isOwnProfile ? "Tu perfil" : "Perfil público"}
                     </span>
                     <h1 className="font-heading text-3xl font-extrabold tracking-tight text-ink">
                       {detail.username}
                     </h1>
                     <p className="mt-1 text-sm text-muted">
                       {isOwnProfile
-                        ? 'Este es tu espacio: listas, favoritas, pendientes y reseñas.'
-                        : 'Descubre las listas y reseñas de este usuario.'}
+                        ? "Este es tu espacio: listas, favoritas, pendientes y reseñas."
+                        : "Descubre las listas y reseñas de este usuario."}
                     </p>
 
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -418,15 +430,15 @@ export function ProfilePage() {
                 {!isOwnProfile && (
                   <Button
                     onClick={handleFollow}
-                    variant={isFollowing ? 'secondary' : 'primary'}
+                    variant={isFollowing ? "secondary" : "primary"}
                     disabled={followBusy}
                     className="shrink-0"
                   >
                     {followBusy
-                      ? 'Guardando…'
+                      ? "Guardando…"
                       : isFollowing
-                        ? 'Dejar de seguir'
-                        : 'Seguir'}
+                        ? "Dejar de seguir"
+                        : "Seguir"}
                   </Button>
                 )}
               </div>
@@ -456,7 +468,9 @@ export function ProfilePage() {
                 count={detail.favouriteCount}
               />
               {favourites.length === 0 ? (
-                <EmptyState>Este usuario no tiene películas favoritas.</EmptyState>
+                <EmptyState>
+                  Este usuario no tiene películas favoritas.
+                </EmptyState>
               ) : (
                 <>
                   <MovieRow movies={favourites} />
@@ -492,19 +506,46 @@ export function ProfilePage() {
                 eyebrow="Colecciones"
                 title="Listas creadas"
                 count={lists.length}
+                action={
+                  isOwnProfile && (
+                    <Link
+                      to="/myLists"
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-line/10 bg-surface px-4 py-2 text-sm font-medium text-ink transition-all hover:-translate-y-px hover:border-accent/30 hover:bg-surface-2 hover:text-accent"
+                    >
+                      + Crear lista
+                    </Link>
+                  )
+                }
               />
               {lists.length === 0 ? (
-                <EmptyState>Este usuario todavía no ha creado listas.</EmptyState>
+                <EmptyState>
+                  Este usuario todavía no ha creado listas.
+                </EmptyState>
               ) : (
                 <div className="-mx-1 flex snap-x gap-4 overflow-x-auto px-1 pb-2">
-                  {lists.map((list) => (
-                    <div
-                      key={list.id}
-                      className="w-[260px] shrink-0 snap-start sm:w-[300px]"
-                    >
-                      <ListPreviewCard list={list} userId={detail.id} />
-                    </div>
-                  ))}
+                  {lists.map((list) => {
+                    const enrichedList: MovieList = {
+                      ...list,
+                      userId: list.userId ?? detail.id,
+                      username: list.username ?? detail.username,
+                    };
+
+                    return (
+                      <div
+                        key={list.id}
+                        className="w-[260px] shrink-0 snap-start sm:w-[300px]"
+                      >
+                        <PublicListCard
+                          list={enrichedList}
+                          editHref={
+                            isOwnProfile
+                              ? `/myLists/${list.id}/edit`
+                              : undefined
+                          }
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </section>
@@ -517,7 +558,9 @@ export function ProfilePage() {
                 count={reviews.length}
               />
               {reviews.length === 0 ? (
-                <EmptyState>Este usuario todavía no ha escrito reseñas.</EmptyState>
+                <EmptyState>
+                  Este usuario todavía no ha escrito reseñas.
+                </EmptyState>
               ) : (
                 <>
                   <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

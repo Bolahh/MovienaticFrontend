@@ -768,12 +768,33 @@ export async function getListMovies(
 export async function addList(
   userId: number,
   name: string,
-  description?: string
-): Promise<void> {
-  await request<string>(`/users/${userId}/lists`, {
+  description?: string,
+  movieIds?: number[]
+): Promise<UserMovieList> {
+  return request<UserMovieList>(`/users/${userId}/lists`, {
     method: 'POST',
-    responseType: 'text',
-    body: { name, description: description ?? '' },
+    body: {
+      name,
+      description: description ?? '',
+      movieIds: movieIds ?? [],
+    },
+  });
+}
+
+export async function updateList(
+  userId: number,
+  listId: number,
+  name: string,
+  description?: string,
+  movieIds?: number[]
+): Promise<UserMovieList> {
+  return request<UserMovieList>(`/users/${userId}/lists/${listId}`, {
+    method: 'PUT',
+    body: {
+      name,
+      description: description ?? '',
+      ...(movieIds !== undefined ? { movieIds } : {}),
+    },
   });
 }
 

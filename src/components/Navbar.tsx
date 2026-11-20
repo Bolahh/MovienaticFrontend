@@ -456,12 +456,12 @@ export function Navbar({ onLogin, onRegister }: NavbarProps) {
                           Mi perfil
                         </Link>
                         <Link
-                          to="/createList"
+                          to="/myLists"
                           role="menuitem"
                           className="flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted hover:bg-accent-soft hover:text-accent transition-colors"
                         >
                           <FilmIcon className="h-4 w-4" />
-                          Crear lista de películas
+                          Mis listas de películas
                         </Link>
                         <button
                           type="button"
